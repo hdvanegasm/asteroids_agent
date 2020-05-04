@@ -66,6 +66,8 @@ def test_agent(target_nn, fixed_states):
     n_episodes = 0
     sum_score = 0
     sum_reward = 0
+    sum_score_episode = 0
+    sum_reward_episode = 0
 
     done_last_episode = False
 
@@ -129,6 +131,8 @@ def test_agent(target_nn, fixed_states):
 
     if n_episodes == 0:
         n_episodes = 1
+        sum_score = sum_score_episode
+        sum_reward = sum_reward_episode
 
     # Compute Q-values
     sum_q_values = 0

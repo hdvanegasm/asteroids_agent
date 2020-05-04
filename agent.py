@@ -164,7 +164,7 @@ def main_training_loop():
             target_net.load_state_dict(policy_net.state_dict())
 
             # Epoch test
-            if (steps_done - 1) % constants.STEPS_PER_EPOCH == 0:
+            if steps_done % constants.STEPS_PER_EPOCH == 0:
                 epoch += 1
                 epoch_reward_average, epoch_score_average, n_episodes, q_values_average = test.test_agent(target_net, fixed_states)
                 information.append([epoch, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
