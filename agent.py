@@ -1,5 +1,7 @@
 import math
 import random
+import numpy
+import pandas
 
 import gym
 
@@ -10,12 +12,18 @@ from network import DeepQNetwork
 import constants
 import memory
 import utils
+import test
+
+
+def compute_epsilon(steps_done):
+    if steps_done < 1000000:
+        return (-9 / 10000000) * steps_done + 1
+    else:
+        return 0.1
 
 
 def select_action(state, policy_nn, steps_done, env):
-    epsilon_threshold = constants.EPS_END + \
-                        (constants.EPS_START - constants.EPS_END) * \
-                        math.exp(-1 * steps_done / constants.EPS_DECAY)
+    epsilon_threshold = compute_epsilon(steps_done)
     sample = random.random()
     if sample > epsilon_threshold:
         with torch.no_grad():
@@ -63,6 +71,9 @@ def get_screen(env):
 
 
 def main_training_loop():
+
+    fixed_states = test.get_fixed_states()
+
     env = gym.make('Asteroids-v0')
 
     n_actions = env.action_space.n
@@ -82,6 +93,8 @@ def main_training_loop():
     replay_memory = memory.ReplayMemory(constants.REPLAY_MEMORY_SIZE)
 
     steps_done = 0
+    epoch = 0
+    information = [["epoch", "avg_reward", "avg_score", "n_episodes", "avg_q_value"]]
 
     for i_episode in range(constants.N_EPISODES):
         cumulative_screenshot = []
@@ -92,6 +105,7 @@ def main_training_loop():
             cumulative_screenshot.append(padding_image)
 
         env.reset()
+        episode_score = 0
         episode_reward = 0
 
         screen_grayscale_state = get_screen(env)
@@ -99,16 +113,32 @@ def main_training_loop():
 
         state = utils.process_state(cumulative_screenshot)
 
-        for i in range(constants.N_TIMESTEP_PER_EP):
-            env.render()
-            action = select_action(state, policy_net, steps_done, env)
-            _, reward, done, _ = env.step(action)
-            episode_reward += reward
+        prev_state_lives = constants.INITIAL_LIVES
 
-            reward_tensor = torch.tensor([reward])
+        for i in range(constants.N_TIMESTEP_PER_EP):
+            if constants.SHOW_SCREEN:
+                env.render()
+
+            action = select_action(state, policy_net, steps_done, env)
+            _, reward, done, info = env.step(action)
+            episode_score += reward
+
+            reward_tensor = None
+
+            if info["ale.lives"] < prev_state_lives:
+                reward_tensor = torch.tensor([-1])
+                episode_reward += -1
+            elif reward > 0:
+                reward_tensor = torch.tensor([1])
+                episode_reward += 1
+            else:
+                reward_tensor = torch.tensor([0])
+
+            prev_state_lives = info["ale.lives"]
 
             screen_grayscale = get_screen(env)
             cumulative_screenshot.append(screen_grayscale)
+            cumulative_screenshot.pop(0)  # Deletes the first element of the list to save memory space
 
             if done:
                 next_state = None
@@ -117,19 +147,39 @@ def main_training_loop():
 
             replay_memory.push(state, action, next_state, reward_tensor)
 
+            # Fix state to analyze Q-function aproximator
+            if steps_done == 100:
+                fixed_state = state
+
             state = next_state
 
             optimize_model(target_net, policy_net, replay_memory, optimizer)
             steps_done += 1
 
             if done:
-                print("Episode reward:", episode_reward, "Steps done:", steps_done)
+                print("Steps done:", steps_done, "- Episode reward:", episode_reward, "- Episode score:", episode_score)
                 break
 
-        if i_episode % constants.TARGET_UPDATE == 0:
+            # Update target policy
             target_net.load_state_dict(policy_net.state_dict())
 
+            # Epoch test
+            if (steps_done - 1) % constants.STEPS_PER_EPOCH == 0:
+                epoch += 1
+                epoch_reward_average, epoch_score_average, n_episodes, q_values_average = test.test_agent(target_net, fixed_states)
+                information.append([epoch, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
+
+    # Save test information in dataframe
+    information_numpy = numpy.array(information)
+    dataframe_information = pandas.DataFrame(columns=information_numpy[0, 0:], data=information_numpy[1:, 0:])
+    dataframe_information.to_csv("info/results.csv")
+    print(dataframe_information)
+
+    # Save target parameters in file
+    torch.save(target_net.state_dict(), "info/nn_parameters.txt")
+
     env.close()
+
 
 if __name__ == "__main__":
     main_training_loop()
