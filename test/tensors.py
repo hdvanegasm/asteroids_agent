@@ -2,6 +2,7 @@ import torch
 import torchvision.transforms as transforms
 from collections import namedtuple
 import numpy as np
+#from memory import Transition
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -16,11 +17,12 @@ f3 = torch.tensor([1, 2, 3])
 
 t4 = torch.tensor([1, 2, 3])
 f4 = torch.tensor([1, 2, 3])
-transitions = [Transition(t1, 20, f1, 2000), Transition(t2, 30, None, 3000), Transition(t3, 40, f3, 4000), Transition(t4, 50, f4, 5000)]
+transitions = [Transition(t1, torch.tensor([[20]]), f1, torch.tensor([2000])),
+               Transition(t2, torch.tensor([[30]]), None, torch.tensor([3000])),
+               Transition(t3, torch.tensor([[40]]), f3, torch.tensor([4000])),
+               Transition(t4, torch.tensor([[50]]), f4, torch.tensor([5000]))]
 batch = Transition(*zip(*transitions))
 
-a = torch.tensor([[1, 2, 3], [1, 2, 3]])
-print(a.shape)
-
-print(a.unsqueeze(1))
-print(a.unsqueeze(1).shape)
+x = torch.tensor([[[[1, 2, 3], [4, 5, 6]]]])
+y = torch.tensor([[[[10, 20, 30], [40, 50, 60]]]])
+print(torch.cat([x, y], dim=2).shape)

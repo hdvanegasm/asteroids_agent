@@ -16,10 +16,11 @@ class ReplayMemory(object):
         self.memory = []
         self.position = 0
         
-    def push(self, transition):
+    def push(self, state, action, next_state, reward):
         """
         Saves a transition in the replay-memory
         """
+        transition = Transition(state, action, next_state, reward)
         if len(self.memory) <= self.capacity:
             self.memory.append(transition)
         else:

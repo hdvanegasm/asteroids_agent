@@ -6,34 +6,41 @@ import torchvision.transforms
 
 import utils
 
+
+# TODO Check network
 class DeepQNetwork(torch.nn.Module):
-    
-    def __init__(self, height = 84 * 4, width = 84, outputs = 14):
+
+    def __init__(self, height=84 * 4, width=84, outputs=14):
         super(DeepQNetwork, self).__init__()
-        
+
         # First layer
         self.conv1 = torch.nn.Conv2d(1, 16, kernel_size=8, stride=4)
-        self.batch_norm1 = torch.nn.BatchNorm2d(16)
-        
+
         # Second layer
         self.conv2 = torch.nn.Conv2d(16, 32, kernel_size=4, stride=2)
-        self.batch_norm2 = torch.nn.BatchNorm2d(32)
-        
-        # Convolution output calculation
-        convw = utils.conv2d_size_out(utils.conv2d_size_out(utils.conv2d_size_out(width)))
-        convh = utils.conv2d_size_out(utils.conv2d_size_out(utils.conv2d_size_out(height)))
-        linear_input_size = convw * convh * 32
-        
+
+        # Method that computes the number of units of a convolution output given an input
+        # Equation taken from:
+        # Dumoulin, V., & Visin, F.(2016).A guide to convolution arithmetic for deep learning. 1–31. Retrieved from
+        # http://arxiv.org/abs/1603.07285
+        def conv2d_output_size(input_size, kernel_size, stride):
+            return ((input_size - kernel_size) // stride) + 1
+
+        convw = conv2d_output_size(conv2d_output_size(width, kernel_size=8, stride=4), kernel_size=4, stride=2)
+        convh = conv2d_output_size(conv2d_output_size(height, kernel_size=8, stride=4), kernel_size=4, stride=2)
+
+        linear_output_size = 32 * convw * convh
+
         # Hidden layer
-        self.hiden_linear_layer = torch.nn.Linear(linear_input_size, 256)
-        
+        self.hiden_linear_layer = torch.nn.Linear(linear_output_size, 256)
+
         # Output layer
         self.head = torch.nn.Linear(256, outputs)
-        
+
     def forward(self, x):
-        x = torch.nn.functional.relu(self.batch_norm1(self.conv1(x)))
-        x = torch.nn.functional.relu(self.batch_norm2(self.conv2(x)))
+        x = torch.nn.functional.relu(self.conv1(x))
+        x = torch.nn.functional.relu(self.conv2(x))
+        x = x.view(x.size(0), -1)
         x = torch.nn.functional.relu(self.hiden_linear_layer(x))
-        return self.head(x.view(x.size(0), -1))
-    
+        return self.head(x)
     
