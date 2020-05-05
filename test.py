@@ -6,7 +6,7 @@ import gym
 import torch
 
 import random
-from scipy.misc import toimage
+
 
 def get_fixed_states():
 
