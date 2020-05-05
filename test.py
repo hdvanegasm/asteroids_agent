@@ -29,8 +29,6 @@ def get_fixed_states():
     prepare_cumulative_screenshot(cumulative_screenshot)
     env.reset()
 
-    return cumulative_screenshot
-
     for steps in range(constants.N_STEPS_FIXED_STATES):
         if constants.SHOW_SCREEN:
             env.render()

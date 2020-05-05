@@ -1,6 +1,6 @@
 # Deep Q learning constants
 BATCH_SIZE = 32
-GAMMA = 0.999
+GAMMA = 0.99
 EPS_START = 1
 EPS_END = 0.1
 TARGET_UPDATE = 1
@@ -21,7 +21,7 @@ STEPS_PER_EPOCH = 25000
 
 # Test constants
 TEST_EPSILON = 0.05
-N_TEST_STEPS = 10000
+N_TEST_STEPS = 5000
 N_STEPS_FIXED_STATES = 1000
 
 # Interface
