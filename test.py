@@ -6,7 +6,7 @@ import gym
 import torch
 
 import random
-
+from scipy.misc import toimage
 
 def get_fixed_states():
 
@@ -25,12 +25,16 @@ def get_fixed_states():
         screen_grayscale_state = get_screen(env)
         cumul_screenshot.append(screen_grayscale_state)
 
+
     prepare_cumulative_screenshot(cumulative_screenshot)
     env.reset()
+
+    return cumulative_screenshot
 
     for steps in range(constants.N_STEPS_FIXED_STATES):
         if constants.SHOW_SCREEN:
             env.render()
+
         _, _, done, _ = env.step(env.action_space.sample())  # take a random action
 
         if done:
