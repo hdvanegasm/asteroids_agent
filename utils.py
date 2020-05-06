@@ -21,4 +21,4 @@ def conv2d_size_out(size, kernel_size=5, stride=2):
 
 def process_state(cumulative_screenshot):
     last_four_images = cumulative_screenshot[-constants.N_IMAGES_PER_STATE:]
-    return torch.cat(last_four_images, dim=1).unsqueeze(0)
+    return torch.cat(last_four_images, dim=0).unsqueeze(0)

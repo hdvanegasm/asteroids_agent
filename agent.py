@@ -54,13 +54,13 @@ def optimize_model(target_nn, policy_nn, memory, optimizer):
 
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * constants.GAMMA) + reward_batch
-    loss = torch.nn.functional.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+    loss = torch.nn.functional.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
     optimizer.zero_grad()
     loss.backward()
 
     for param in policy_nn.parameters():
-        param.grad.data.clamp_(-1, 1)
+        param.grad.data.clamp_(-5, 5)
 
     optimizer.step()
 
@@ -74,16 +74,18 @@ def main_training_loop():
 
     fixed_states = test.get_fixed_states()
 
-    env = gym.make('Asteroids-v0')
+    env = gym.make('AsteroidsNoFrameskip-v0')
 
     n_actions = env.action_space.n
 
-    policy_net = DeepQNetwork(constants.STATE_IMG_HEIGHT * constants.N_IMAGES_PER_STATE,
+    policy_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
+                              constants.N_IMAGES_PER_STATE,
                               n_actions)
 
-    target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT * constants.N_IMAGES_PER_STATE,
+    target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
+                              constants.N_IMAGES_PER_STATE,
                               n_actions)
 
     target_net.load_state_dict(policy_net.state_dict())
@@ -94,89 +96,99 @@ def main_training_loop():
 
     steps_done = 0
     epoch = 0
-    information = [["epoch", "avg_reward", "avg_score", "n_episodes", "avg_q_value"]]
+    information = [["epoch", "n_steps", "avg_reward", "avg_score", "n_episodes", "avg_q_value"]]
+    try:
+        for i_episode in range(constants.N_EPISODES):
+            cumulative_screenshot = []
 
-    for i_episode in range(constants.N_EPISODES):
-        cumulative_screenshot = []
+            # Prepare the cumulative screenshot
+            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
+            for i in range(constants.N_IMAGES_PER_STATE - 1):
+                cumulative_screenshot.append(padding_image)
 
-        # Prepare the cumulative screenshot
-        padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
-        for i in range(constants.N_IMAGES_PER_STATE - 1):
-            cumulative_screenshot.append(padding_image)
+            env.reset()
+            episode_score = 0
+            episode_reward = 0
 
-        env.reset()
-        episode_score = 0
-        episode_reward = 0
+            screen_grayscale_state = get_screen(env)
+            cumulative_screenshot.append(screen_grayscale_state)
 
-        screen_grayscale_state = get_screen(env)
-        cumulative_screenshot.append(screen_grayscale_state)
+            state = utils.process_state(cumulative_screenshot)
 
-        state = utils.process_state(cumulative_screenshot)
+            prev_state_lives = constants.INITIAL_LIVES
 
-        prev_state_lives = constants.INITIAL_LIVES
+            for i in range(constants.N_TIMESTEP_PER_EP):
+                if constants.SHOW_SCREEN:
+                    env.render()
 
-        for i in range(constants.N_TIMESTEP_PER_EP):
-            if constants.SHOW_SCREEN:
-                env.render()
+                action = select_action(state, policy_net, steps_done, env)
+                _, reward, done, info = env.step(action)
+                episode_score += reward
 
-            action = select_action(state, policy_net, steps_done, env)
-            _, reward, done, info = env.step(action)
-            episode_score += reward
+                reward_tensor = None
 
-            reward_tensor = None
+                if info["ale.lives"] < prev_state_lives:
+                    reward_tensor = torch.tensor([-1])
+                    episode_reward += -1
+                elif reward > 0:
+                    reward_tensor = torch.tensor([1])
+                    episode_reward += 1
+                else:
+                    reward_tensor = torch.tensor([0])
 
-            if info["ale.lives"] < prev_state_lives:
-                reward_tensor = torch.tensor([-1])
-                episode_reward += -1
-            elif reward > 0:
-                reward_tensor = torch.tensor([1])
-                episode_reward += 1
-            else:
-                reward_tensor = torch.tensor([0])
+                prev_state_lives = info["ale.lives"]
 
-            prev_state_lives = info["ale.lives"]
+                screen_grayscale = get_screen(env)
+                cumulative_screenshot.append(screen_grayscale)
+                cumulative_screenshot.pop(0)  # Deletes the first element of the list to save memory space
 
-            screen_grayscale = get_screen(env)
-            cumulative_screenshot.append(screen_grayscale)
-            cumulative_screenshot.pop(0)  # Deletes the first element of the list to save memory space
+                if done:
+                    next_state = None
+                else:
+                    next_state = utils.process_state(cumulative_screenshot)
 
-            if done:
-                next_state = None
-            else:
-                next_state = utils.process_state(cumulative_screenshot)
+                replay_memory.push(state, action, next_state, reward_tensor)
 
-            replay_memory.push(state, action, next_state, reward_tensor)
+                state = next_state
 
-            # Fix state to analyze Q-function aproximator
-            if steps_done == 100:
-                fixed_state = state
+                optimize_model(target_net, policy_net, replay_memory, optimizer)
+                steps_done += 1
 
-            state = next_state
+                if done:
+                    print("Episode:", i_episode, "Steps done:", steps_done, "- Episode reward:", episode_reward, "- Episode score:", episode_score)
+                    break
 
-            optimize_model(target_net, policy_net, replay_memory, optimizer)
-            steps_done += 1
+                # Update target policy
+                if steps_done % constants.TARGET_UPDATE == 0:
+                    target_net.load_state_dict(policy_net.state_dict())
 
-            if done:
-                print("Steps done:", steps_done, "- Episode reward:", episode_reward, "- Episode score:", episode_score)
-                break
+                # Epoch test
+                if steps_done % constants.STEPS_PER_EPOCH == 0:
+                    epoch += 1
+                    epoch_reward_average, epoch_score_average, n_episodes, q_values_average = test.test_agent(target_net, fixed_states)
+                    information.append([epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
 
-            # Update target policy
-            target_net.load_state_dict(policy_net.state_dict())
+        # Save test information in dataframe
+        print("Saving information...")
+        information_numpy = numpy.array(information)
+        dataframe_information = pandas.DataFrame(columns=information_numpy[0, 0:],
+                                                 data=information_numpy[1:, 0:])
+        dataframe_information.to_csv("info/results.csv")
+        print(dataframe_information)
 
-            # Epoch test
-            if steps_done % constants.STEPS_PER_EPOCH == 0:
-                epoch += 1
-                epoch_reward_average, epoch_score_average, n_episodes, q_values_average = test.test_agent(target_net, fixed_states)
-                information.append([epoch, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
+        # Save target parameters in file
+        torch.save(target_net.state_dict(), "info/nn_parameters.txt")
 
-    # Save test information in dataframe
-    information_numpy = numpy.array(information)
-    dataframe_information = pandas.DataFrame(columns=information_numpy[0, 0:], data=information_numpy[1:, 0:])
-    dataframe_information.to_csv("info/results.csv")
-    print(dataframe_information)
+    except KeyboardInterrupt:
+        # Save test information in dataframe
+        print("Saving information...")
+        information_numpy = numpy.array(information)
+        dataframe_information = pandas.DataFrame(columns=information_numpy[0, 0:], data=information_numpy[1:, 0:])
+        dataframe_information.to_csv("info/results.csv")
+        print(dataframe_information)
 
-    # Save target parameters in file
-    torch.save(target_net.state_dict(), "info/nn_parameters.txt")
+        # Save target parameters in file
+        torch.save(target_net.state_dict(), "info/nn_parameters.txt")
 
     env.close()
 

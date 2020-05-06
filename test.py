@@ -12,7 +12,7 @@ def get_fixed_states():
 
     fixed_states = []
 
-    env = gym.make('Asteroids-v0')
+    env = gym.make('AsteroidsNoFrameskip-v0')
 
     cumulative_screenshot = []
 
@@ -62,7 +62,7 @@ def select_action(state, policy_nn, env):
 
 
 def test_agent(target_nn, fixed_states):
-    env = gym.make('Asteroids-v0')
+    env = gym.make('AsteroidsNoFrameskip-v0')
 
     steps = 0
     n_episodes = 0

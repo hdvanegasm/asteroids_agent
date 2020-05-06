@@ -3,11 +3,11 @@ import torch.nn
 
 class Net(torch.nn.Module):
 
-    def __init__(self, height=84 * 4, width=84, outputs=14):
+    def __init__(self, height=84, width=84, outputs=14):
         super(Net, self).__init__()
 
         # First layer
-        self.conv1 = torch.nn.Conv2d(1, 16, kernel_size=8, stride=4)
+        self.conv1 = torch.nn.Conv2d(4, 16, kernel_size=8, stride=4)
 
         # Second layer
         self.conv2 = torch.nn.Conv2d(16, 32, kernel_size=4, stride=2)
@@ -40,6 +40,6 @@ class Net(torch.nn.Module):
 if __name__ == "__main__":
     net = Net()
 
-    x = torch.ones(1, 1, 84 * 4, 84)
-
-    print(net(x).max(1)[1].view(1, 1))
+    x = torch.ones(2, 4, 84, 84)
+    print(x)
+    print(net(x))

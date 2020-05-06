@@ -10,11 +10,11 @@ import utils
 # TODO Check network
 class DeepQNetwork(torch.nn.Module):
 
-    def __init__(self, height=84 * 4, width=84, outputs=14):
+    def __init__(self, height, width, input_channels, outputs):
         super(DeepQNetwork, self).__init__()
 
         # First layer
-        self.conv1 = torch.nn.Conv2d(1, 16, kernel_size=8, stride=4)
+        self.conv1 = torch.nn.Conv2d(input_channels, 16, kernel_size=8, stride=4)
 
         # Second layer
         self.conv2 = torch.nn.Conv2d(16, 32, kernel_size=4, stride=2)
