@@ -119,7 +119,7 @@ def test_agent(target_nn, fixed_states):
             else:
                 next_state = utils.process_state(cumulative_screenshot)
 
-            if next_state != None:
+            if next_state is not None:
                 state.copy_(next_state)
             steps += 1
             done_last_episode = done
