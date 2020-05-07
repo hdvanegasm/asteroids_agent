@@ -1,0 +1,64 @@
+---
+title: "Análisis de resultados"
+author: "Hernán Darío Vanegas Madrigal"
+date: "5/5/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=F, warning=F, results=F}
+library(tidyverse)
+library(plotly)
+library(ggthemes)
+library(data.table)
+```
+
+```{r}
+data_results <- fread("results.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+```
+
+# Summary results
+
+```{r}
+data_results %>% 
+  dplyr::select(-V1, -epoch, -n_episodes) %>% 
+  summary()
+```
+
+
+# Avg Q-value
+
+```{r}
+g <- ggplot(data = data_results) +
+  geom_line(mapping = aes(x = epoch, y = avg_q_value)) +
+  labs(x = "Epoch", y = "Avg Q-value", title = "Avg Q-value per epoch")
+
+ggplotly(g)
+```
+
+# Avg reward
+
+```{r}
+g <- ggplot(data = data_results) +
+  geom_line(mapping = aes(x = epoch, y = avg_reward)) +
+  labs(x = "Epoch", y = "Avg Reward", title = "Avg Reward per epoch")
+
+ggplotly(g)
+```
+
+# Avg score
+
+```{r}
+g <- ggplot(data = data_results) +
+  geom_line(mapping = aes(x = epoch, y = avg_score)) +
+  labs(x = "Epoch", y = "Avg Score", title = "Avg Score per epoch")
+
+ggplotly(g)
+```
+
