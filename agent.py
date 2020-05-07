@@ -147,7 +147,7 @@ def main_training_loop():
 
                 replay_memory.push(state, action, next_state, reward_tensor)
 
-                if next_state != None:
+                if next_state is not None:
                     state.copy_(next_state)
 
                 optimize_model(target_net, policy_net, replay_memory, optimizer, criterion)
