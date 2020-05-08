@@ -75,12 +75,12 @@ def main_training_loop():
 
     policy_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
-                              constants.N_IMAGES_PER_STATE,
+                              constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
 
     target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
-                              constants.N_IMAGES_PER_STATE,
+                              constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
     criterion = torch.nn.MSELoss()
     target_net.load_state_dict(policy_net.state_dict())
@@ -166,7 +166,7 @@ def main_training_loop():
                     epoch += 1
                     epoch_reward_average, epoch_score_average, n_episodes, q_values_average = test.test_agent(target_net, fixed_states)
                     information.append([epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
-                    print("INFO", [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
+                    print("INFO:", [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
 
         # Save test information in dataframe
         print("Saving information...")

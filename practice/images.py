@@ -4,15 +4,22 @@ import torchvision.transforms as transforms
 import numpy
 import constants
 import torch
+import utils
 
-from gym import envs
-envids = [spec.id for spec in envs.registry.all()]
-for envid in sorted(envids):
-    print(envid)
+import sys
+
+
+def state_to_image(state, identifier):
+    i = 0
+    for channel in state[0]:
+        matplotlib.pyplot.imsave("state-" + identifier + "-" + str(i) + ".png", channel)
+        i += 1
+
 
 def get_screen(env):
-    screen = env.render(mode='rgb_array').transpose((2, 0, 1))
+    screen = env.render(mode='rgb_array')
     return transform_image(screen)
+
 
 def transform_image(screen):
     return transforms.Compose([
@@ -26,8 +33,18 @@ def transform_image(screen):
 
 
 def process_state(cumulative_screenshot):
-    last_four_images = cumulative_screenshot[-constants.N_IMAGES_PER_STATE:]
-    return torch.cat(last_four_images, dim=0).unsqueeze(0)
+    last_images = cumulative_screenshot[-constants.N_IMAGES_PER_STATE:]
+
+    proccessed_images = []
+
+    for i in range(0, len(last_images), 2):
+        first_image = last_images[i]
+        second_image = last_images[i + 1]
+        join_image = torch.max(first_image, second_image)
+        proccessed_images.append(join_image)
+
+
+    return torch.cat(proccessed_images, dim=0).unsqueeze(0)
 
 
 env = gym.make('AsteroidsNoFrameskip-v0')
@@ -37,21 +54,15 @@ cumulative_screenshots = []
 
 for i in range(50):
     env.render()
-    env.step(env.action_space.sample()) # take a random action
+    env.step(env.action_space.sample())  # take a random action
 
     # Con transformacion
     screen = get_screen(env)
-    if i > 20:
-        matplotlib.pyplot.imsave("image_transform" + str(i) + ".png", screen[0])
 
     cumulative_screenshots.append(screen)
 
 state = process_state(cumulative_screenshots)
 print(state.shape)
-state = process_state(cumulative_screenshots)
-matplotlib.pyplot.imsave("state.png", state[0][0])
-
-
+state_to_image(state, "Test")
 
 # Sin transformacion
-
