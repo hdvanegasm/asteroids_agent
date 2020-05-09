@@ -142,8 +142,8 @@ def main_training_loop():
             cumulative_screenshot = []
 
             # Prepare the cumulative screenshot
-            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
             for i in range(constants.N_IMAGES_PER_STATE - 1):
+                padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
                 cumulative_screenshot.append(padding_image)
 
             env.reset()
@@ -245,7 +245,7 @@ def main_training_loop():
         print(dataframe_information)
 
         # Save target parameters in file
-        torch.save(target_net.state_dict(), "info/nn_parameters.txt")
+        torch.save(target_net.state_dict(), "info/nn_parameters.ptf")
 
     except KeyboardInterrupt:
         # Save test information in dataframe
@@ -256,7 +256,7 @@ def main_training_loop():
         print(dataframe_information)
 
         # Save target parameters in file
-        torch.save(target_net.state_dict(), "info/nn_parameters.txt")
+        torch.save(target_net.state_dict(), "info/nn_parameters.ptf")
 
     env.close()
 

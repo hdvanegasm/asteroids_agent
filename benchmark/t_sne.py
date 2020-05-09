@@ -1,4 +1,3 @@
-
 import constants
 import utils
 
@@ -14,6 +13,7 @@ import pandas as pd
 from sklearn.manifold import TSNE
 
 import matplotlib.pyplot as plt
+
 
 class DeepQNetwork(torch.nn.Module):
 
@@ -36,10 +36,12 @@ class DeepQNetwork(torch.nn.Module):
         def conv2d_output_size(input_size, kernel_size, stride):
             return ((input_size - kernel_size) // stride) + 1
 
-        convw = conv2d_output_size(conv2d_output_size(conv2d_output_size(width, kernel_size=8, stride=4), kernel_size=4, stride=2),
-                                   kernel_size=3, stride=1)
-        convh = conv2d_output_size(conv2d_output_size(conv2d_output_size(height, kernel_size=8, stride=4), kernel_size=4, stride=2),
-                                   kernel_size=3, stride=1)
+        convw = conv2d_output_size(
+            conv2d_output_size(conv2d_output_size(width, kernel_size=8, stride=4), kernel_size=4, stride=2),
+            kernel_size=3, stride=1)
+        convh = conv2d_output_size(
+            conv2d_output_size(conv2d_output_size(height, kernel_size=8, stride=4), kernel_size=4, stride=2),
+            kernel_size=3, stride=1)
 
         linear_output_size = 64 * convw * convh
 
@@ -58,6 +60,7 @@ class DeepQNetwork(torch.nn.Module):
         x = torch.nn.functional.relu(self.hiden_linear_layer(x))
         return self.head(x), hidden_out
 
+
 def get_fixed_states():
     fixed_states = []
 
@@ -67,12 +70,12 @@ def get_fixed_states():
 
     def prepare_cumulative_screenshot(cumul_screenshot):
         # Prepare the cumulative screenshot
-        padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
         for i in range(constants.N_IMAGES_PER_STATE - 1):
+            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
             cumul_screenshot.append(padding_image)
 
         screen_grayscale_state = get_screen(env)
-        cumul_screenshot.append(screen_grayscale_state)
+        cumul_screenshot.append(screen_grayscale_state.clone().detach())
 
     prepare_cumulative_screenshot(cumulative_screenshot)
     env.reset()
@@ -91,12 +94,12 @@ def get_fixed_states():
             prepare_cumulative_screenshot(cumulative_screenshot)
 
         screen_grayscale = get_screen(env)
-        cumulative_screenshot.append(screen_grayscale)
+        cumulative_screenshot.append(screen_grayscale.clone().detach())
         cumulative_screenshot.pop(0)
         state = utils.process_state(cumulative_screenshot)
 
         if steps >= 8:
-            fixed_states.append(state)
+            fixed_states.append(state.clone().detach())
 
     env.close()
     return fixed_states
@@ -113,7 +116,7 @@ def t_sne_algorithm(target_nn):
     flatten_states = []
     for state in sample_states:
         result, hidden = target_nn(state)
-        flatten_states.append(hidden[0].tolist())
+        flatten_states.append(hidden[0].clone().detach().tolist())
         q_values.append(result.max(1)[0].view(1, 1).item())
         print("Q value =", result.max(1)[0].view(1, 1).item())
 
@@ -140,18 +143,17 @@ def t_sne_algorithm(target_nn):
     plt.show()
 
 
-
 if __name__ == "__main__":
     env = gym.make('AsteroidsNoFrameskip-v0')
 
     n_actions = env.action_space.n
 
     target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
-                 constants.STATE_IMG_WIDTH,
-                 constants.N_IMAGES_PER_STATE // 2,
-                 n_actions)
+                              constants.STATE_IMG_WIDTH,
+                              constants.N_IMAGES_PER_STATE // 2,
+                              n_actions)
 
-    target_net.load_state_dict(torch.load("nn_parameters.txt"))
+    target_net.load_state_dict(torch.load("nn_parameters.ptf"))
     target_net.eval()
 
     t_sne_algorithm(target_net)

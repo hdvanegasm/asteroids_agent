@@ -1,5 +1,6 @@
 from network import DeepQNetwork
 from agent import get_screen
+from agent import plot_q_continuous
 import constants
 import utils
 import time
@@ -32,7 +33,7 @@ def benchmark():
                               constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
 
-    target_net.load_state_dict(torch.load("nn_parameters.txt"))
+    target_net.load_state_dict(torch.load("nn_parameters.ptf"))
     target_net.eval()
 
     n_test_episodes = 100
@@ -40,6 +41,8 @@ def benchmark():
     episode_scores = []
     episode_rewards = []
 
+    steps_done = 0
+    q_values = []
     try:
         for i_episode in range(n_test_episodes):
 
@@ -55,7 +58,7 @@ def benchmark():
             episode_reward = 0
 
             screen_grayscale_state = get_screen(env)
-            cumulative_screenshot.append(screen_grayscale_state)
+            cumulative_screenshot.append(screen_grayscale_state.clone().detach())
 
             state = utils.process_state(cumulative_screenshot)
 
@@ -82,7 +85,7 @@ def benchmark():
                 prev_state_lives = info["ale.lives"]
 
                 screen_grayscale = get_screen(env)
-                cumulative_screenshot.append(screen_grayscale)
+                cumulative_screenshot.append(screen_grayscale.clone().detach())
                 cumulative_screenshot.pop(0)  # Deletes the first element of the list to save memory space
 
                 if done:
@@ -93,11 +96,18 @@ def benchmark():
                 if next_state is not None:
                     state = next_state.clone().detach()
 
+                if constants.PLOT_Q:
+                    if steps_done > 40:
+                        q_values.pop(0)
+                    q_values.append(target_net(state).max(1)[0].view(1, 1).item())
+
                 if done:
                     print("Episode:", i_episode, "- Episode reward:", episode_reward, "- Episode score:", episode_score)
                     episode_scores.append(episode_score)
                     episode_rewards.append(episode_reward)
                     break
+
+                steps_done += 1
 
         print("RESULTS:")
         print("Score mean:", numpy.mean(episode_scores))

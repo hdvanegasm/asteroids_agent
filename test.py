@@ -18,12 +18,12 @@ def get_fixed_states():
 
     def prepare_cumulative_screenshot(cumul_screenshot):
         # Prepare the cumulative screenshot
-        padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
         for i in range(constants.N_IMAGES_PER_STATE - 1):
+            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
             cumul_screenshot.append(padding_image)
 
         screen_grayscale_state = agent.get_screen(env)
-        cumul_screenshot.append(screen_grayscale_state)
+        cumul_screenshot.append(screen_grayscale_state.clone().detach())
 
     prepare_cumulative_screenshot(cumulative_screenshot)
     env.reset()
@@ -40,12 +40,12 @@ def get_fixed_states():
             prepare_cumulative_screenshot(cumulative_screenshot)
 
         screen_grayscale = agent.get_screen(env)
-        cumulative_screenshot.append(screen_grayscale)
+        cumulative_screenshot.append(screen_grayscale.clone().detach())
         cumulative_screenshot.pop(0)
         state = utils.process_state(cumulative_screenshot)
 
         if steps >= 8:
-            fixed_states.append(state)
+            fixed_states.append(state.clone().detach())
 
     env.close()
     return fixed_states
