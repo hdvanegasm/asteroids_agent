@@ -213,7 +213,7 @@ def main_training_loop():
                         q_values.pop(0)
                     q_values.append(target_net(state).max(1)[0].view(1, 1).item())
                     plot_q_continuous(q_values)
-                print("Epoch", epoch, ", Q =", target_net(state).max(1)[0].view(1, 1).item())
+
                 steps_done += 1
 
                 if done:
@@ -236,6 +236,10 @@ def main_training_loop():
                           [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average],
                           "Epsilon =", compute_epsilon(steps_done))
 
+                # Save file
+                if steps_done % constants.PERIODIC_SAVE == 0:
+                    torch.save(target_net, "info/nn_parameters.ptf")
+
         # Save test information in dataframe
         print("Saving information...")
         information_numpy = numpy.array(information)
@@ -244,8 +248,6 @@ def main_training_loop():
         dataframe_information.to_csv("info/results.csv")
         print(dataframe_information)
 
-        # Save target parameters in file
-        torch.save(target_net.state_dict(), "info/nn_parameters.ptf")
 
     except KeyboardInterrupt:
         # Save test information in dataframe
@@ -254,9 +256,6 @@ def main_training_loop():
         dataframe_information = pandas.DataFrame(columns=information_numpy[0, 0:], data=information_numpy[1:, 0:])
         dataframe_information.to_csv("info/results.csv")
         print(dataframe_information)
-
-        # Save target parameters in file
-        torch.save(target_net.state_dict(), "info/nn_parameters.ptf")
 
     env.close()
 

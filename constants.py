@@ -32,4 +32,7 @@ PLOT_LOSS = False
 PLOT_Q = False
 SECONDS_SLEEP = 0.01
 
+# Files
+PERIODIC_SAVE = 5000
+
 

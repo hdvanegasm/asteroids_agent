@@ -33,7 +33,7 @@ def benchmark():
                               constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
 
-    target_net.load_state_dict(torch.load("nn_parameters.ptf"))
+    target_net = torch.load("nn_parameters.ptf")
     target_net.eval()
 
     n_test_episodes = 100
