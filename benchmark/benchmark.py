@@ -2,7 +2,7 @@ from network import DeepQNetwork
 from agent import get_screen
 import constants
 import utils
-
+import time
 
 
 import torch
@@ -62,6 +62,9 @@ def benchmark():
             prev_state_lives = constants.INITIAL_LIVES
 
             while True:
+
+                time.sleep(0.01)
+
                 if constants.SHOW_SCREEN:
                     env.render()
 
@@ -88,7 +91,7 @@ def benchmark():
                     next_state = utils.process_state(cumulative_screenshot)
 
                 if next_state is not None:
-                    state.copy_(next_state)
+                    state = next_state.clone().detach()
 
                 if done:
                     print("Episode:", i_episode, "- Episode reward:", episode_reward, "- Episode score:", episode_score)

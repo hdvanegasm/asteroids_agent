@@ -1,5 +1,5 @@
 # Deep Q learning constants
-BATCH_SIZE = 4
+BATCH_SIZE = 32
 GAMMA = 0.99
 EPS_START = 1
 EPS_END = 0.1
@@ -29,5 +29,7 @@ N_STEPS_FIXED_STATES = 5000
 # Interface
 SHOW_SCREEN = False
 PLOT_LOSS = False
+PLOT_Q = False
+SECONDS_SLEEP = 0.01
 
 

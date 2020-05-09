@@ -86,7 +86,7 @@ def test_agent(target_nn, fixed_states):
         env.reset()
 
         screen_grayscale_state = agent.get_screen(env)
-        cumulative_screenshot.append(screen_grayscale_state)
+        cumulative_screenshot.append(screen_grayscale_state.clone().detach())
 
         state = utils.process_state(cumulative_screenshot)
 
@@ -110,7 +110,7 @@ def test_agent(target_nn, fixed_states):
             prev_state_lives = info["ale.lives"]
 
             screen_grayscale = agent.get_screen(env)
-            cumulative_screenshot.append(screen_grayscale)
+            cumulative_screenshot.append(screen_grayscale.clone().detach())
             cumulative_screenshot.pop(0)
 
             if done:
@@ -119,7 +119,8 @@ def test_agent(target_nn, fixed_states):
                 next_state = utils.process_state(cumulative_screenshot)
 
             if next_state is not None:
-                state.copy_(next_state)
+                state = next_state.clone().detach()
+
             steps += 1
             done_last_episode = done
 

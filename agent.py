@@ -13,6 +13,7 @@ import constants
 import memory
 import utils
 import test
+import time
 
 import matplotlib.pyplot as plt
 
@@ -81,6 +82,18 @@ def plot_loss_continuous(losses):
     plt.pause(0.001)  # pause a bit so that plots are updated
 
 
+def plot_q_continuous(q_values):
+    plt.figure(2)
+    plt.clf()
+    plt.title('Training Q')
+    plt.xlabel('Batch Update')
+    plt.ylabel('Loss')
+    plt.plot(q_values)
+    # Take 100 episode averages and plot them too
+
+    plt.pause(0.001)  # pause a bit so that plots are updated
+
+
 def plot_loss_img(losses):
     plt.figure(2)
     plt.clf()
@@ -120,6 +133,7 @@ def main_training_loop():
     steps_done = 0
     epoch = 0
     losses = []
+    q_values = []
     information = [["epoch", "n_steps", "avg_reward", "avg_score", "n_episodes", "avg_q_value"]]
 
     try:
@@ -137,7 +151,7 @@ def main_training_loop():
             episode_reward = 0
 
             screen_grayscale_state = get_screen(env)
-            cumulative_screenshot.append(screen_grayscale_state)
+            cumulative_screenshot.append(screen_grayscale_state.clone().detach())
 
             state = utils.process_state(cumulative_screenshot)
 
@@ -168,25 +182,37 @@ def main_training_loop():
                 prev_state_lives = info["ale.lives"]
 
                 screen_grayscale = get_screen(env)
-                cumulative_screenshot.append(screen_grayscale)
+                cumulative_screenshot.append(screen_grayscale.clone().detach())
                 cumulative_screenshot.pop(0)  # Deletes the first element of the list to save memory space
 
                 if done:
                     next_state = None
+
+                    replay_memory.push(state.clone().detach(),
+                                       action.clone().detach(),
+                                       next_state,
+                                       reward_tensor)
                 else:
                     next_state = utils.process_state(cumulative_screenshot)
 
-                replay_memory.push(state, action, next_state, reward_tensor)
+                    replay_memory.push(state.clone().detach(),
+                                       action.clone().detach(),
+                                       next_state.clone().detach(),
+                                       reward_tensor)
 
-                if next_state is not None:
-                    state.copy_(next_state)
+                    state = next_state.clone().detach()
 
                 loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion)
 
-                losses.append(loss)
-
                 if constants.PLOT_LOSS:
+                    losses.append(loss)
                     plot_loss_continuous(losses)
+
+                if constants.PLOT_Q:
+                    if steps_done > 40:
+                        q_values.pop(0)
+                    q_values.append(target_net(state).max(1)[0].view(1, 1).item())
+                    plot_q_continuous(q_values)
 
                 steps_done += 1
 
@@ -207,7 +233,8 @@ def main_training_loop():
                     information.append(
                         [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
                     print("INFO:",
-                          [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
+                          [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average],
+                          "Epsilon =", compute_epsilon(steps_done))
 
         # Save test information in dataframe
         print("Saving information...")

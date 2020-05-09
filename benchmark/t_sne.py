@@ -13,7 +13,6 @@ from agent import get_screen
 import pandas as pd
 from sklearn.manifold import TSNE
 
-import seaborn as sns
 import matplotlib.pyplot as plt
 
 class DeepQNetwork(torch.nn.Module):
@@ -116,6 +115,7 @@ def t_sne_algorithm(target_nn):
         result, hidden = target_nn(state)
         flatten_states.append(hidden[0].tolist())
         q_values.append(result.max(1)[0].view(1, 1).item())
+        print("Q value =", result.max(1)[0].view(1, 1).item())
 
     flatten_states_tensor = torch.tensor(flatten_states)
 
@@ -135,7 +135,8 @@ def t_sne_algorithm(target_nn):
                y=df['tsne-2d-two'],
                c=df['y'],
                s=3,
-               edgecolor='')
+               edgecolor='',
+               cmap="jet")
     plt.show()
 
 

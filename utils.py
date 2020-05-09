@@ -10,9 +10,7 @@ def transform_image(screen):
         transforms.ToPILImage(mode="RGB"),
         transforms.Resize((110, 84)),
         transforms.CenterCrop(84),
-        #transforms.Grayscale(num_output_channels=1),
-        transforms.ToTensor()#,
-        #transforms.Normalize([0.4161, ], [0.1688, ]),
+        transforms.ToTensor()
     ])(screen)
 
 
