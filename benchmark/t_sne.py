@@ -153,7 +153,7 @@ if __name__ == "__main__":
                               constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
 
-    target_net = torch.load("nn_parameters.ptf")
+    target_net.load_state_dict(torch.load("nn_parameters.pth"))
     target_net.eval()
 
     t_sne_algorithm(target_net)

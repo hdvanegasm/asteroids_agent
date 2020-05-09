@@ -239,7 +239,7 @@ def main_training_loop():
                 # Save file periodically
                 if steps_done % constants.PERIODIC_SAVE == 0:
                     print("Saving network state...")
-                    torch.save(target_net, "info/nn_parameters.ptf")
+                    torch.save(target_net.state_dict(), "info/nn_parameters.pth")
 
         # Save test information in dataframe
         print("Saving information...")
