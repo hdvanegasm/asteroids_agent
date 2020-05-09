@@ -60,6 +60,10 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion):
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
     optimizer.zero_grad()
     loss.backward()
+
+    for param in policy_nn.parameters():
+        param.grad.data.clamp_(-1, 1)
+
     optimizer.step()
 
     return loss.item()

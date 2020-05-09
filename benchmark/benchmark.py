@@ -36,7 +36,7 @@ def benchmark():
     target_net.load_state_dict(torch.load("nn_parameters.pth"))
     target_net.eval()
 
-    n_test_episodes = 100
+    n_test_episodes = 200
 
     episode_scores = []
     episode_rewards = []
@@ -97,7 +97,7 @@ def benchmark():
                     state = next_state.clone().detach()
 
                 if constants.PLOT_Q:
-                    if steps_done > 40:
+                    if steps_done > 120:
                         q_values.pop(0)
                     q_values.append(target_net(state).max(1)[0].view(1, 1).item())
                     plot_q_continuous(q_values)

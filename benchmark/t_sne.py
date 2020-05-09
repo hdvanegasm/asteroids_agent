@@ -80,7 +80,7 @@ def get_fixed_states():
     prepare_cumulative_screenshot(cumulative_screenshot)
     env.reset()
 
-    N_STATES = 5000
+    N_STATES = 200
 
     for steps in range(N_STATES + 8):
         if constants.SHOW_SCREEN:
@@ -108,7 +108,7 @@ def get_fixed_states():
 def t_sne_algorithm(target_nn):
     states = get_fixed_states()
 
-    N_SAMPLES = 5000
+    N_SAMPLES = 200
 
     sample_states = random.sample(states, k=N_SAMPLES)
 
