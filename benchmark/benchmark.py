@@ -1,6 +1,9 @@
 from network import DeepQNetwork
+from agent import get_screen
 import constants
 import utils
+
+
 
 import torch
 
@@ -19,11 +22,6 @@ def select_action(state, policy_nn, env):
         return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
 
 
-def get_screen(env):
-    screen = env.render(mode='rgb_array')
-    return utils.transform_image(screen)
-
-
 def benchmark():
     env = gym.make('AsteroidsNoFrameskip-v0')
 
@@ -31,10 +29,13 @@ def benchmark():
 
     target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
-                              constants.N_IMAGES_PER_STATE,
+                              constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
 
-    n_test_episodes = 1000
+    target_net.load_state_dict(torch.load("nn_parameters.txt"))
+    target_net.eval()
+
+    n_test_episodes = 100
 
     episode_scores = []
     episode_rewards = []

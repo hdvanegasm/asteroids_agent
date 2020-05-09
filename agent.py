@@ -14,6 +14,8 @@ import memory
 import utils
 import test
 
+import matplotlib.pyplot as plt
+
 
 def compute_epsilon(steps_done):
     if steps_done < 1000000:
@@ -59,17 +61,43 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion):
     loss.backward()
     optimizer.step()
 
+    return loss.item()
+
 
 def get_screen(env):
     screen = env.render(mode='rgb_array')
-    return utils.transform_image(screen)
+    return (utils.transform_image(screen)[1] * 255).unsqueeze(0)
+
+
+def plot_loss_continuous(losses):
+    plt.figure(2)
+    plt.clf()
+    plt.title('Training Loss')
+    plt.xlabel('Batch Update')
+    plt.ylabel('Loss')
+    plt.plot(losses)
+    # Take 100 episode averages and plot them too
+
+    plt.pause(0.001)  # pause a bit so that plots are updated
+
+
+def plot_loss_img(losses):
+    plt.figure(2)
+    plt.clf()
+    plt.title('Training Loss')
+    plt.xlabel('Batch Update')
+    plt.ylabel('Loss')
+    plt.plot(losses)
+    plt.imsave("losses.png")
+    plt.close()
 
 
 def main_training_loop():
-
     fixed_states = test.get_fixed_states()
 
     env = gym.make('AsteroidsNoFrameskip-v0')
+
+    replay_memory = memory.ReplayMemory(constants.REPLAY_MEMORY_SIZE)
 
     n_actions = env.action_space.n
 
@@ -82,16 +110,18 @@ def main_training_loop():
                               constants.STATE_IMG_WIDTH,
                               constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
-    criterion = torch.nn.MSELoss()
+
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
 
+    criterion = torch.nn.MSELoss()
     optimizer = torch.optim.RMSprop(policy_net.parameters(), lr=constants.LEARNING_RATE, momentum=0.95)
-    replay_memory = memory.ReplayMemory(constants.REPLAY_MEMORY_SIZE)
 
     steps_done = 0
     epoch = 0
+    losses = []
     information = [["epoch", "n_steps", "avg_reward", "avg_score", "n_episodes", "avg_q_value"]]
+
     try:
         for i_episode in range(constants.N_EPISODES):
 
@@ -118,6 +148,7 @@ def main_training_loop():
                     env.render()
 
                 action = select_action(state, policy_net, steps_done, env)
+
                 _, reward, done, info = env.step(action)
                 episode_score += reward
 
@@ -150,11 +181,18 @@ def main_training_loop():
                 if next_state is not None:
                     state.copy_(next_state)
 
-                optimize_model(target_net, policy_net, replay_memory, optimizer, criterion)
+                loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion)
+
+                losses.append(loss)
+
+                if constants.PLOT_LOSS:
+                    plot_loss_continuous(losses)
+
                 steps_done += 1
 
                 if done:
-                    print("Episode:", i_episode, "Steps done:", steps_done, "- Episode reward:", episode_reward, "- Episode score:", episode_score)
+                    print("Episode:", i_episode, "Steps done:", steps_done, "- Episode reward:", episode_reward,
+                          "- Episode score:", episode_score)
                     break
 
                 # Update target policy
@@ -164,9 +202,12 @@ def main_training_loop():
                 # Epoch test
                 if steps_done % constants.STEPS_PER_EPOCH == 0:
                     epoch += 1
-                    epoch_reward_average, epoch_score_average, n_episodes, q_values_average = test.test_agent(target_net, fixed_states)
-                    information.append([epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
-                    print("INFO:", [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
+                    epoch_reward_average, epoch_score_average, n_episodes, q_values_average = test.test_agent(
+                        target_net, fixed_states)
+                    information.append(
+                        [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
+                    print("INFO:",
+                          [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average])
 
         # Save test information in dataframe
         print("Saving information...")

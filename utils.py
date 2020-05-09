@@ -10,9 +10,9 @@ def transform_image(screen):
         transforms.ToPILImage(mode="RGB"),
         transforms.Resize((110, 84)),
         transforms.CenterCrop(84),
-        transforms.Grayscale(num_output_channels=1),
-        transforms.ToTensor(),
-        transforms.Normalize([0.4161, ], [0.1688, ]),
+        #transforms.Grayscale(num_output_channels=1),
+        transforms.ToTensor()#,
+        #transforms.Normalize([0.4161, ], [0.1688, ]),
     ])(screen)
 
 
@@ -30,6 +30,7 @@ def process_state(cumulative_screenshot):
         second_image = last_images[i + 1]
         join_image = torch.max(first_image, second_image)
         processed_images.append(join_image)
+
     return torch.cat(processed_images, dim=0).unsqueeze(0)
 
 

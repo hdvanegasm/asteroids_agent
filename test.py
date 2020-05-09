@@ -1,6 +1,6 @@
 import constants
-from agent import get_screen
 import utils
+import agent
 
 import gym
 import torch
@@ -22,7 +22,7 @@ def get_fixed_states():
         for i in range(constants.N_IMAGES_PER_STATE - 1):
             cumul_screenshot.append(padding_image)
 
-        screen_grayscale_state = get_screen(env)
+        screen_grayscale_state = agent.get_screen(env)
         cumul_screenshot.append(screen_grayscale_state)
 
     prepare_cumulative_screenshot(cumulative_screenshot)
@@ -39,7 +39,7 @@ def get_fixed_states():
             cumulative_screenshot = []
             prepare_cumulative_screenshot(cumulative_screenshot)
 
-        screen_grayscale = get_screen(env)
+        screen_grayscale = agent.get_screen(env)
         cumulative_screenshot.append(screen_grayscale)
         cumulative_screenshot.pop(0)
         state = utils.process_state(cumulative_screenshot)
@@ -59,7 +59,6 @@ def select_action(state, policy_nn, env):
             return policy_nn(state).max(1)[1].view(1, 1)
     else:
         return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
-
 
 def test_agent(target_nn, fixed_states):
     env = gym.make('AsteroidsNoFrameskip-v0')
@@ -86,7 +85,7 @@ def test_agent(target_nn, fixed_states):
 
         env.reset()
 
-        screen_grayscale_state = get_screen(env)
+        screen_grayscale_state = agent.get_screen(env)
         cumulative_screenshot.append(screen_grayscale_state)
 
         state = utils.process_state(cumulative_screenshot)
@@ -110,7 +109,7 @@ def test_agent(target_nn, fixed_states):
 
             prev_state_lives = info["ale.lives"]
 
-            screen_grayscale = get_screen(env)
+            screen_grayscale = agent.get_screen(env)
             cumulative_screenshot.append(screen_grayscale)
             cumulative_screenshot.pop(0)
 

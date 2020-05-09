@@ -5,6 +5,7 @@ import numpy
 import constants
 import torch
 import utils
+import PIL
 
 import sys
 
@@ -18,17 +19,17 @@ def state_to_image(state, identifier):
 
 def get_screen(env):
     screen = env.render(mode='rgb_array')
-    return transform_image(screen)
+    return (transform_image(screen)[1] * 255).unsqueeze(0).type(torch.IntTensor)
 
 
 def transform_image(screen):
     return transforms.Compose([
-        transforms.ToPILImage(),
+        transforms.ToPILImage(mode="RGB"),
         transforms.Resize((110, 84)),
         transforms.CenterCrop(84),
-        transforms.Grayscale(num_output_channels=1),
-        transforms.ToTensor(),
-        transforms.Normalize([0.4161, ], [0.1688, ]),
+        #transforms.Grayscale(num_output_channels=1),
+        transforms.ToTensor()#,
+        #transforms.Normalize([0.4161, ], [0.1688, ]),
     ])(screen)
 
 
@@ -42,7 +43,6 @@ def process_state(cumulative_screenshot):
         second_image = last_images[i + 1]
         join_image = torch.max(first_image, second_image)
         proccessed_images.append(join_image)
-
 
     return torch.cat(proccessed_images, dim=0).unsqueeze(0)
 
@@ -62,7 +62,6 @@ for i in range(50):
     cumulative_screenshots.append(screen)
 
 state = process_state(cumulative_screenshots)
-print(state.shape)
-state_to_image(state, "Test")
+state_to_image(state, "Norm")
 
 # Sin transformacion
