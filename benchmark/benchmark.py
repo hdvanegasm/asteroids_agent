@@ -100,6 +100,7 @@ def benchmark():
                     if steps_done > 40:
                         q_values.pop(0)
                     q_values.append(target_net(state).max(1)[0].view(1, 1).item())
+                    plot_q_continuous(q_values)
 
                 if done:
                     print("Episode:", i_episode, "- Episode reward:", episode_reward, "- Episode score:", episode_score)

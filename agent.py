@@ -213,7 +213,7 @@ def main_training_loop():
                         q_values.pop(0)
                     q_values.append(target_net(state).max(1)[0].view(1, 1).item())
                     plot_q_continuous(q_values)
-
+                print("Epoch", epoch, ", Q =", target_net(state).max(1)[0].view(1, 1).item())
                 steps_done += 1
 
                 if done:
