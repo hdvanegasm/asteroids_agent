@@ -236,8 +236,9 @@ def main_training_loop():
                           [epoch, steps_done, epoch_reward_average, epoch_score_average, n_episodes, q_values_average],
                           "Epsilon =", compute_epsilon(steps_done))
 
-                # Save file
+                # Save file periodically
                 if steps_done % constants.PERIODIC_SAVE == 0:
+                    print("Saving network state")
                     torch.save(target_net, "info/nn_parameters.ptf")
 
         # Save test information in dataframe
