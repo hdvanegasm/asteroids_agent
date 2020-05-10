@@ -56,7 +56,6 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion, steps_don
 
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * constants.GAMMA) + reward_batch
-    state_action_values
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
     optimizer.zero_grad()
     loss.backward()
