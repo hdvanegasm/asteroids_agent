@@ -33,8 +33,8 @@ def benchmark():
                               constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
 
-    target_net.load_state_dict(torch.load("nn_parameters.pth"))
-    target_net.eval()
+
+    target_net.load_state_dict(torch.load("nn_parameters.pth"), strict=False)
 
     n_test_episodes = 200
 
@@ -49,8 +49,9 @@ def benchmark():
             cumulative_screenshot = []
 
             # Prepare the cumulative screenshot
-            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
+
             for i in range(constants.N_IMAGES_PER_STATE - 1):
+                padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
                 cumulative_screenshot.append(padding_image)
 
             env.reset()
@@ -99,7 +100,10 @@ def benchmark():
                 if constants.PLOT_Q:
                     if steps_done > 120:
                         q_values.pop(0)
-                    q_values.append(target_net(state).max(1)[0].view(1, 1).item())
+
+                    with torch.no_grad():
+                        q_values.append(target_net(state).max(1)[0].view(1, 1).item())
+
                     plot_q_continuous(q_values)
                     print(target_net(state))
 

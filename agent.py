@@ -222,10 +222,6 @@ def main_training_loop():
 
                 steps_done += 1
 
-                if steps_done % 200 == 0:
-                    with torch.no_grad():
-                        print("Q =", target_net(state).max(1)[0].view(1, 1).item(), "- Loss =", loss, "- Epoch", epoch)
-
                 if done:
                     print("Episode:", i_episode, "- Steps done:", steps_done, "- Episode reward:", episode_reward,
                           "- Episode score:", episode_score)
@@ -250,6 +246,7 @@ def main_training_loop():
                 if steps_done % constants.PERIODIC_SAVE == 0:
                     print("Saving network state...")
                     torch.save(target_net.state_dict(), "info/nn_parameters.pth")
+                    torch.save(target_net, "info/nn_parameters_complete.pth")
                     print("Network state saved.")
 
         # Save test information in dataframe
