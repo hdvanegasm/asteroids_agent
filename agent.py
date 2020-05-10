@@ -222,6 +222,10 @@ def main_training_loop():
 
                 steps_done += 1
 
+                if steps_done % 200 == 0:
+                    with torch.no_grad():
+                        print("Epoch:", epoch, "- Q-Value:", target_net(state).max(1)[0].view(1, 1).item(), "- Loss:", loss)
+
                 if done:
                     print("Episode:", i_episode, "- Steps done:", steps_done, "- Episode reward:", episode_reward,
                           "- Episode score:", episode_score)
