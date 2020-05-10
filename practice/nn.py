@@ -42,4 +42,5 @@ if __name__ == "__main__":
 
     x = torch.ones(2, 4, 84, 84)
     print(x)
-    print(net(x))
+    print(net(x).max(1))
+    print(x)

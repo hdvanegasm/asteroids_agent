@@ -35,14 +35,14 @@ def select_action(state, policy_nn, steps_done, env):
         return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
 
 
-def optimize_model(target_nn, policy_nn, memory, optimizer, criterion):
+def optimize_model(target_nn, policy_nn, memory, optimizer, criterion, steps_done):
     if len(memory) < constants.BATCH_SIZE:
         return
 
     transitions = memory.sample(constants.BATCH_SIZE)
 
     # Array of True/False if the state is not final
-    non_final_mask = torch.tensor(tuple(map(lambda t: t.next_state is not None, transitions)))
+    non_final_mask = torch.tensor(tuple(map(lambda t: t.next_state is not None, transitions)), dtype=torch.bool)
     non_final_next_states = torch.cat([trans.next_state for trans in transitions
                                        if trans.next_state is not None])
     state_batch = torch.cat([trans.state for trans in transitions])
@@ -147,7 +147,7 @@ def main_training_loop():
 
             # Prepare the cumulative screenshot
             for i in range(constants.N_IMAGES_PER_STATE - 1):
-                padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
+                padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH)).detach()
                 cumulative_screenshot.append(padding_image)
 
             env.reset()
@@ -167,7 +167,7 @@ def main_training_loop():
 
                 action = select_action(state, policy_net, steps_done, env)
 
-                _, reward, done, info = env.step(action)
+                _, reward, done, info = env.step(action.item())
                 episode_score += reward
 
                 reward_tensor = None
@@ -206,7 +206,7 @@ def main_training_loop():
 
                     state = next_state.clone().detach()
 
-                loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion)
+                loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion, steps_done)
 
                 if constants.PLOT_LOSS:
                     losses.append(loss)
@@ -215,13 +215,16 @@ def main_training_loop():
                 if constants.PLOT_Q:
                     if steps_done > 40:
                         q_values.pop(0)
-                    q_values.append(target_net(state).max(1)[0].view(1, 1).item())
+
+                    with torch.no_grad():
+                        q_values.append(target_net(state).max(1)[0].view(1, 1).item())
+
                     plot_q_continuous(q_values)
 
                 steps_done += 1
 
                 if done:
-                    print("Episode:", i_episode, "Steps done:", steps_done, "- Episode reward:", episode_reward,
+                    print("Episode:", i_episode, "- Steps done:", steps_done, "- Episode reward:", episode_reward,
                           "- Episode score:", episode_score)
                     break
 
@@ -244,7 +247,7 @@ def main_training_loop():
                 if steps_done % constants.PERIODIC_SAVE == 0:
                     print("Saving network state...")
                     torch.save(target_net.state_dict(), "info/nn_parameters.pth")
-                    print("Network state saved...")
+                    print("Network state saved.")
 
         # Save test information in dataframe
         print("Saving information...")

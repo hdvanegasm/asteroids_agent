@@ -60,6 +60,7 @@ def select_action(state, policy_nn, env):
     else:
         return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
 
+
 def test_agent(target_nn, fixed_states):
     env = gym.make('AsteroidsNoFrameskip-v0')
 
@@ -142,6 +143,7 @@ def test_agent(target_nn, fixed_states):
     # Compute Q-values
     sum_q_values = 0
     for state in fixed_states:
-        sum_q_values += target_nn(state).max(1)[0]
+        with torch.no_grad():
+            sum_q_values += target_nn(state).max(1)[0]
 
     return sum_reward / n_episodes, sum_score / n_episodes, n_episodes, sum_q_values.item() / len(fixed_states)
