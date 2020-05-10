@@ -56,10 +56,11 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion, steps_don
 
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * constants.GAMMA) + reward_batch
-
+    state_action_values
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
     optimizer.zero_grad()
     loss.backward()
+
 
     for param in policy_nn.parameters():
         param.grad.data.clamp_(-1, 1)
@@ -89,9 +90,9 @@ def plot_loss_continuous(losses):
 def plot_q_continuous(q_values):
     plt.figure(2)
     plt.clf()
-    plt.title('Training Q')
+    plt.title('Q-Value')
     plt.xlabel('Batch Update')
-    plt.ylabel('Loss')
+    plt.ylabel('Q-Value')
     plt.plot(q_values)
     # Take 100 episode averages and plot them too
 
@@ -193,21 +194,21 @@ def main_training_loop():
                     next_state = None
 
                     replay_memory.push(state.clone().detach(),
-                                       action.clone().detach(),
+                                       action.clone(),
                                        next_state,
                                        reward_tensor)
                 else:
                     next_state = utils.process_state(cumulative_screenshot)
 
                     replay_memory.push(state.clone().detach(),
-                                       action.clone().detach(),
+                                       action.clone(),
                                        next_state.clone().detach(),
                                        reward_tensor)
 
                     state = next_state.clone().detach()
 
                 loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion, steps_done)
-
+                print(len(cumulative_screenshot))
                 if constants.PLOT_LOSS:
                     losses.append(loss)
                     plot_loss_continuous(losses)
@@ -222,6 +223,10 @@ def main_training_loop():
                     plot_q_continuous(q_values)
 
                 steps_done += 1
+
+                if steps_done % 200 == 0:
+                    with torch.no_grad():
+                        print("Q =", target_net(state).max(1)[0].view(1, 1).item(), "- Loss =", loss, "- Epoch", epoch)
 
                 if done:
                     print("Episode:", i_episode, "- Steps done:", steps_done, "- Episode reward:", episode_reward,
