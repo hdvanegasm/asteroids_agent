@@ -34,7 +34,10 @@ def benchmark():
                               n_actions)
 
 
-    target_net.load_state_dict(torch.load("nn_parameters.pth"), strict=False)
+    target_net.load_state_dict(torch.load("nn_parameters.pth"))
+
+    #target_net = torch.load("nn_parameters_complete.pth")
+    target_net.eval()
 
     n_test_episodes = 200
 
@@ -105,7 +108,6 @@ def benchmark():
                         q_values.append(target_net(state).max(1)[0].view(1, 1).item())
 
                     plot_q_continuous(q_values)
-                    print(target_net(state))
 
                 if done:
                     print("Episode:", i_episode, "- Episode reward:", episode_reward, "- Episode score:", episode_score)
