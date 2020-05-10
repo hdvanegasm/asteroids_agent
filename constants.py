@@ -27,9 +27,9 @@ N_TEST_STEPS = 8000
 N_STEPS_FIXED_STATES = 5000
 
 # Interface
-SHOW_SCREEN = True
+SHOW_SCREEN = False
 PLOT_LOSS = False
-PLOT_Q = True
+PLOT_Q = False
 SECONDS_SLEEP = 0.01
 
 # Files

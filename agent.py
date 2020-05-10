@@ -206,6 +206,7 @@ def main_training_loop():
                     state = next_state.clone().detach()
 
                 loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion, steps_done)
+
                 if constants.PLOT_LOSS:
                     losses.append(loss)
                     plot_loss_continuous(losses)
