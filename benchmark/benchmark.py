@@ -5,7 +5,6 @@ import constants
 import utils
 import time
 
-
 import torch
 
 import gym
@@ -33,10 +32,7 @@ def benchmark():
                               constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
 
-
     target_net.load_state_dict(torch.load("nn_parameters.pth"))
-
-    #target_net = torch.load("nn_parameters_complete.pth")
     target_net.eval()
 
     n_test_episodes = 200
@@ -131,6 +127,7 @@ def benchmark():
         print("Reward standard deviation:", numpy.std(episode_rewards))
 
     env.close()
+
 
 if __name__ == "__main__":
     benchmark()

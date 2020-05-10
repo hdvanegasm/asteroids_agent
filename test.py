@@ -12,9 +12,9 @@ def get_fixed_states():
 
     fixed_states = []
 
-    env = gym.make('AsteroidsNoFrameskip-v0')
+    env_game = gym.make('AsteroidsNoFrameskip-v0')
 
-    cumulative_screenshot = []
+    cumul_screenshot = []
 
     def prepare_cumulative_screenshot(cumul_screenshot):
         # Prepare the cumulative screenshot
@@ -22,32 +22,32 @@ def get_fixed_states():
             padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
             cumul_screenshot.append(padding_image)
 
-        screen_grayscale_state = agent.get_screen(env)
+        screen_grayscale_state = agent.get_screen(env_game)
         cumul_screenshot.append(screen_grayscale_state.clone().detach())
 
-    prepare_cumulative_screenshot(cumulative_screenshot)
-    env.reset()
+    prepare_cumulative_screenshot(cumul_screenshot)
+    env_game.reset()
 
     for steps in range(constants.N_STEPS_FIXED_STATES + 8):
         if constants.SHOW_SCREEN:
-            env.render()
+            env_game.render()
 
-        _, _, done, _ = env.step(env.action_space.sample())  # take a random action
+        _, _, done, _ = env_game.step(env_game.action_space.sample())  # take a random action
 
         if done:
-            env.reset()
-            cumulative_screenshot = []
-            prepare_cumulative_screenshot(cumulative_screenshot)
+            env_game.reset()
+            cumul_screenshot = []
+            prepare_cumulative_screenshot(cumul_screenshot)
 
-        screen_grayscale = agent.get_screen(env)
-        cumulative_screenshot.append(screen_grayscale.clone().detach())
-        cumulative_screenshot.pop(0)
-        state = utils.process_state(cumulative_screenshot)
+        screen_grayscale = agent.get_screen(env_game)
+        cumul_screenshot.append(screen_grayscale.clone().detach())
+        cumul_screenshot.pop(0)
+        state = utils.process_state(cumul_screenshot)
 
         if steps >= 8:
             fixed_states.append(state.clone().detach())
 
-    env.close()
+    env_game.close()
     return fixed_states
 
 
@@ -62,7 +62,7 @@ def select_action(state, policy_nn, env):
 
 
 def test_agent(target_nn, fixed_states):
-    env = gym.make('AsteroidsNoFrameskip-v0')
+    game_env = gym.make('AsteroidsNoFrameskip-v0')
 
     steps = 0
     n_episodes = 0
@@ -74,7 +74,7 @@ def test_agent(target_nn, fixed_states):
     done_last_episode = False
 
     while steps <= constants.N_TEST_STEPS:
-        cumulative_screenshot = []
+        cumul_screenshot = []
 
         sum_score_episode = 0
         sum_reward_episode = 0
@@ -82,20 +82,20 @@ def test_agent(target_nn, fixed_states):
         # Prepare the cumulative screenshot
         for i in range(constants.N_IMAGES_PER_STATE - 1):
             padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
-            cumulative_screenshot.append(padding_image)
+            cumul_screenshot.append(padding_image)
 
-        env.reset()
+        game_env.reset()
 
-        screen_grayscale_state = agent.get_screen(env)
-        cumulative_screenshot.append(screen_grayscale_state.clone().detach())
+        screen_grayscale_state = agent.get_screen(game_env)
+        cumul_screenshot.append(screen_grayscale_state.clone().detach())
 
-        state = utils.process_state(cumulative_screenshot)
+        state = utils.process_state(cumul_screenshot)
 
         prev_state_lives = constants.INITIAL_LIVES
 
         while steps <= constants.N_TEST_STEPS:
-            action = select_action(state, target_nn, env)
-            _, reward, done, info = env.step(action)
+            action = select_action(state, target_nn, game_env)
+            _, reward, done, info = game_env.step(action.item())
 
             sum_score_episode += reward
 
@@ -110,14 +110,14 @@ def test_agent(target_nn, fixed_states):
 
             prev_state_lives = info["ale.lives"]
 
-            screen_grayscale = agent.get_screen(env)
-            cumulative_screenshot.append(screen_grayscale.clone().detach())
-            cumulative_screenshot.pop(0)
+            screen_grayscale = agent.get_screen(game_env)
+            cumul_screenshot.append(screen_grayscale.clone().detach())
+            cumul_screenshot.pop(0)
 
             if done:
                 next_state = None
             else:
-                next_state = utils.process_state(cumulative_screenshot)
+                next_state = utils.process_state(cumul_screenshot)
 
             if next_state is not None:
                 state = next_state.clone().detach()
@@ -133,7 +133,7 @@ def test_agent(target_nn, fixed_states):
             sum_reward += sum_reward_episode
             n_episodes += 1
 
-    env.close()
+    game_env.close()
 
     if n_episodes == 0:
         n_episodes = 1

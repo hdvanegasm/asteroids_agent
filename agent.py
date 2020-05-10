@@ -57,9 +57,9 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion, steps_don
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * constants.GAMMA) + reward_batch
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+
     optimizer.zero_grad()
     loss.backward()
-
 
     for param in policy_nn.parameters():
         param.grad.data.clamp_(-1, 1)
@@ -93,7 +93,6 @@ def plot_q_continuous(q_values):
     plt.xlabel('Batch Update')
     plt.ylabel('Q-Value')
     plt.plot(q_values)
-    # Take 100 episode averages and plot them too
 
     plt.pause(0.001)  # pause a bit so that plots are updated
 
@@ -250,7 +249,6 @@ def main_training_loop():
                 if steps_done % constants.PERIODIC_SAVE == 0:
                     print("Saving network state...")
                     torch.save(target_net.state_dict(), "info/nn_parameters.pth")
-                    torch.save(target_net, "info/nn_parameters_complete.pth")
                     print("Network state saved.")
 
         # Save test information in dataframe
