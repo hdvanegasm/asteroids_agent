@@ -144,6 +144,6 @@ def test_agent(target_nn, fixed_states):
     sum_q_values = 0
     for state in fixed_states:
         with torch.no_grad():
-            sum_q_values += target_nn(state).max(1)[0]
+            sum_q_values += target_nn(state).max(1)[0].item()
 
-    return sum_reward / n_episodes, sum_score / n_episodes, n_episodes, sum_q_values.item() / len(fixed_states)
+    return sum_reward / n_episodes, sum_score / n_episodes, n_episodes, sum_q_values / len(fixed_states)

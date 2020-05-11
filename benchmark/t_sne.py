@@ -14,6 +14,8 @@ from sklearn.manifold import TSNE
 
 import matplotlib.pyplot as plt
 
+SHOW_GAME = False
+SHOW_GRAPH = False
 
 class DeepQNetwork(torch.nn.Module):
 
@@ -22,12 +24,15 @@ class DeepQNetwork(torch.nn.Module):
 
         # First layer
         self.conv1 = torch.nn.Conv2d(input_channels, 32, kernel_size=8, stride=4)
+        self.bn1 = torch.nn.BatchNorm2d(32)
 
         # Second layer
         self.conv2 = torch.nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.bn2 = torch.nn.BatchNorm2d(64)
 
         # Third layer
         self.conv3 = torch.nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        self.bn3 = torch.nn.BatchNorm2d(64)
 
         # Method that computes the number of units of a convolution output given an input
         # Equation taken from:
@@ -52,9 +57,9 @@ class DeepQNetwork(torch.nn.Module):
         self.head = torch.nn.Linear(512, outputs)
 
     def forward(self, x):
-        x = torch.nn.functional.relu(self.conv1(x))
-        x = torch.nn.functional.relu(self.conv2(x))
-        x = torch.nn.functional.relu(self.conv3(x))
+        x = torch.nn.functional.relu(self.bn1(self.conv1(x)))
+        x = torch.nn.functional.relu(self.bn2(self.conv2(x)))
+        x = torch.nn.functional.relu(self.bn3(self.conv3(x)))
         x = x.view(x.size(0), -1)
         hidden_out = self.hiden_linear_layer(x)
         x = torch.nn.functional.relu(self.hiden_linear_layer(x))
@@ -80,10 +85,10 @@ def get_fixed_states():
     prepare_cumulative_screenshot(cumulative_screenshot)
     env.reset()
 
-    N_STATES = 20000
+    N_STATES = 300000
 
     for steps in range(N_STATES + 8):
-        if constants.SHOW_SCREEN:
+        if SHOW_GAME:
             env.render()
 
         _, _, done, _ = env.step(env.action_space.sample())  # take a random action
@@ -108,7 +113,7 @@ def get_fixed_states():
 def t_sne_algorithm(target_nn):
     states = get_fixed_states()
 
-    N_SAMPLES = 20000
+    N_SAMPLES = 300000
 
     sample_states = random.sample(states, k=N_SAMPLES)
 
@@ -140,7 +145,10 @@ def t_sne_algorithm(target_nn):
                s=3,
                edgecolor='',
                cmap="jet")
-    plt.show()
+    if SHOW_GRAPH:
+        plt.show()
+
+    plt.savefig("tsne.png")
 
 
 if __name__ == "__main__":

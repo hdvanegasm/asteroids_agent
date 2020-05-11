@@ -33,6 +33,7 @@ def benchmark():
                               n_actions)
 
     target_net.load_state_dict(torch.load("nn_parameters.pth"))
+
     target_net.eval()
 
     n_test_episodes = 200
@@ -72,7 +73,7 @@ def benchmark():
                     env.render()
 
                 action = select_action(state, target_net, env)
-                _, reward, done, info = env.step(action)
+                _, reward, done, info = env.step(action.item())
                 episode_score += reward
 
                 if info["ale.lives"] < prev_state_lives:
