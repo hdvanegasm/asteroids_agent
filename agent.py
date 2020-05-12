@@ -108,43 +108,52 @@ def plot_loss_img(losses):
     plt.close()
 
 
+def plot_scores(scores):
+    plt.title("Training scores")
+    plt.xlabel("Episode")
+    plt.ylabel("Score")
+    plt.plot(scores)
+    plt.savefig("scores.png")
+    plt.close()
+
+
 def main_training_loop():
     fixed_states = test.get_fixed_states()
 
     env = gym.make('AsteroidsNoFrameskip-v0')
 
+    # Initialize replay memory
     replay_memory = memory.ReplayMemory(constants.REPLAY_MEMORY_SIZE)
 
+    # Configure CNN
     n_actions = env.action_space.n
-
     policy_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
                               constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
-
     target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
                               constants.N_IMAGES_PER_STATE // 2,
                               n_actions)
-
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
-
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.RMSprop(policy_net.parameters(), lr=constants.LEARNING_RATE, momentum=0.95)
 
+    # Initialize storage data structures
     steps_done = 0
     epoch = 0
     losses = []
     q_values = []
     information = [["epoch", "n_steps", "avg_reward", "avg_score", "n_episodes", "avg_q_value"]]
+    episode_scores = []
 
     try:
         for i_episode in range(constants.N_EPISODES):
 
             cumulative_screenshot = []
 
-            # Prepare the cumulative screenshot
+            # Prepare the cumulative screenshot with initial black screens
             for i in range(constants.N_IMAGES_PER_STATE - 1):
                 padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH)).detach()
                 cumulative_screenshot.append(padding_image)
@@ -153,22 +162,26 @@ def main_training_loop():
             episode_score = 0
             episode_reward = 0
 
+            # Process and get the first state
             screen_grayscale_state = get_screen(env)
             cumulative_screenshot.append(screen_grayscale_state.clone().detach())
-
             state = utils.process_state(cumulative_screenshot)
 
+            # Initialize lives
             prev_state_lives = constants.INITIAL_LIVES
 
             for i in range(constants.N_TIMESTEP_PER_EP):
                 if constants.SHOW_SCREEN:
                     env.render()
 
+                # Select an action with epsilon-greedy policy
                 action = select_action(state, policy_net, steps_done, env)
 
+                # Make a step in the environment
                 _, reward, done, info = env.step(action.item())
                 episode_score += reward
 
+                # Apply transformation on the reward
                 reward_tensor = None
                 if info["ale.lives"] < prev_state_lives:
                     reward_tensor = torch.tensor([-1])
@@ -182,29 +195,30 @@ def main_training_loop():
                 else:
                     reward_tensor = torch.tensor([0])
 
+                # Update lives
                 prev_state_lives = info["ale.lives"]
 
+                # Add current screen to cumulative screenshots
                 screen_grayscale = get_screen(env)
                 cumulative_screenshot.append(screen_grayscale.clone().detach())
                 cumulative_screenshot.pop(0)  # Deletes the first element of the list to save memory space
 
+                # Add tuple to replay memory
                 if done:
                     next_state = None
-
                     replay_memory.push(state.clone().detach(),
                                        action.clone(),
                                        next_state,
                                        reward_tensor)
                 else:
                     next_state = utils.process_state(cumulative_screenshot)
-
                     replay_memory.push(state.clone().detach(),
                                        action.clone(),
                                        next_state.clone().detach(),
                                        reward_tensor)
-
                     state = next_state.clone().detach()
 
+                # Make an optimization step
                 loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion, steps_done)
 
                 if constants.PLOT_LOSS:
@@ -215,7 +229,7 @@ def main_training_loop():
                     if steps_done > 40:
                         q_values.pop(0)
 
-                    with torch.no_grad():
+                    with torch.no_grad():  # Use torch.no_grad() for
                         q_values.append(target_net(state).max(1)[0].view(1, 1).item())
 
                     plot_q_continuous(q_values)
@@ -229,6 +243,7 @@ def main_training_loop():
                 if done:
                     print("Episode:", i_episode, "- Steps done:", steps_done, "- Episode reward:", episode_reward,
                           "- Episode score:", episode_score)
+                    episode_scores.append(episode_score)
                     break
 
                 # Update target policy
@@ -260,6 +275,7 @@ def main_training_loop():
         dataframe_information.to_csv("info/results.csv")
         print(dataframe_information)
 
+        plot_scores(episode_scores)
 
     except KeyboardInterrupt:
         # Save test information in dataframe
@@ -268,6 +284,8 @@ def main_training_loop():
         dataframe_information = pandas.DataFrame(columns=information_numpy[0, 0:], data=information_numpy[1:, 0:])
         dataframe_information.to_csv("info/results.csv")
         print(dataframe_information)
+
+        plot_scores(episode_scores)
 
     env.close()
 

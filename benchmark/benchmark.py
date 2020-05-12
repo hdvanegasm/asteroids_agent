@@ -36,13 +36,14 @@ def benchmark():
 
     target_net.eval()
 
-    n_test_episodes = 200
+    n_test_episodes = 50
 
     episode_scores = []
     episode_rewards = []
 
     steps_done = 0
     q_values = []
+
     try:
         for i_episode in range(n_test_episodes):
 

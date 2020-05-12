@@ -15,7 +15,7 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
 SHOW_GAME = False
-SHOW_GRAPH = False
+SHOW_GRAPH = True
 
 class DeepQNetwork(torch.nn.Module):
 
@@ -66,10 +66,22 @@ class DeepQNetwork(torch.nn.Module):
         return self.head(x), hidden_out
 
 
+def select_action(state, policy_nn, env):
+    epsilon_threshold = constants.TEST_EPSILON
+    sample = random.random()
+    if sample > epsilon_threshold:
+        with torch.no_grad():
+            return policy_nn(state)[0].max(1)[1].view(1, 1)
+    else:
+        return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
+
+
+
 def get_fixed_states():
     fixed_states = []
 
     env = gym.make('AsteroidsNoFrameskip-v0')
+    env.reset()
 
     cumulative_screenshot = []
 
@@ -79,19 +91,21 @@ def get_fixed_states():
             padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
             cumul_screenshot.append(padding_image)
 
-        screen_grayscale_state = get_screen(env)
-        cumul_screenshot.append(screen_grayscale_state.clone().detach())
-
     prepare_cumulative_screenshot(cumulative_screenshot)
-    env.reset()
 
-    N_STATES = 300000
+    screen_grayscale_state = get_screen(env)
+    cumulative_screenshot.append(screen_grayscale_state.clone().detach())
+
+    N_STATES = 30000
+
+    state = utils.process_state(cumulative_screenshot)
 
     for steps in range(N_STATES + 8):
         if SHOW_GAME:
             env.render()
 
-        _, _, done, _ = env.step(env.action_space.sample())  # take a random action
+        action = select_action(state, target_net, env)
+        _, _, done, _ = env.step(action.item())  # take a random action
 
         if done:
             env.reset()
@@ -100,8 +114,8 @@ def get_fixed_states():
 
         screen_grayscale = get_screen(env)
         cumulative_screenshot.append(screen_grayscale.clone().detach())
-        cumulative_screenshot.pop(0)
         state = utils.process_state(cumulative_screenshot)
+        cumulative_screenshot.pop(0)
 
         if steps >= 8:
             fixed_states.append(state.clone().detach())
@@ -113,7 +127,7 @@ def get_fixed_states():
 def t_sne_algorithm(target_nn):
     states = get_fixed_states()
 
-    N_SAMPLES = 300000
+    N_SAMPLES = 30000
 
     sample_states = random.sample(states, k=N_SAMPLES)
 
@@ -123,7 +137,7 @@ def t_sne_algorithm(target_nn):
         result, hidden = target_nn(state)
         flatten_states.append(hidden[0].clone().detach().tolist())
         q_values.append(result.max(1)[0].view(1, 1).item())
-        print("Q value =", result.max(1)[0].view(1, 1).item())
+        #print("Q value =", result.max(1)[0].view(1, 1).item())
 
     flatten_states_tensor = torch.tensor(flatten_states)
 
