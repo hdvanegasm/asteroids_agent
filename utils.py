@@ -8,7 +8,7 @@ import matplotlib.pyplot
 def transform_image(screen):
     return transforms.Compose([
         transforms.ToPILImage(mode="RGB"),
-        transforms.Resize((110, 84)),
+        transforms.Resize((84, 84)),
         transforms.CenterCrop(84),
         transforms.ToTensor()
     ])(screen)

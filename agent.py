@@ -35,13 +35,13 @@ def select_action(state, policy_nn, steps_done, env):
         return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
 
 
-def optimize_model(target_nn, policy_nn, memory, optimizer, criterion, steps_done):
+def optimize_model(target_nn, policy_nn, memory, optimizer, criterion):
     if len(memory) < constants.BATCH_SIZE:
         return
 
     transitions = memory.sample(constants.BATCH_SIZE)
 
-    # Array of True/False if the state is not final
+    # Array of True/False if the state is non final
     non_final_mask = torch.tensor(tuple(map(lambda t: t.next_state is not None, transitions)), dtype=torch.bool)
     non_final_next_states = torch.cat([trans.next_state for trans in transitions
                                        if trans.next_state is not None])
@@ -61,9 +61,7 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion, steps_don
     optimizer.zero_grad()
     loss.backward()
 
-    for param in policy_nn.parameters():
-        param.grad.data.clamp_(-1, 1)
-
+    #  No clamp (origen del error)
     optimizer.step()
 
     return loss.item()
@@ -71,7 +69,7 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion, steps_don
 
 def get_screen(env):
     screen = env.render(mode='rgb_array')
-    return (utils.transform_image(screen)[1] * 255).unsqueeze(0)
+    return (utils.transform_image(screen)[1]).unsqueeze(0)  # No escalado (origen del error)
 
 
 def plot_loss_continuous(losses):
@@ -138,7 +136,7 @@ def main_training_loop():
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.RMSprop(policy_net.parameters(), lr=constants.LEARNING_RATE, momentum=0.95)
+    optimizer = torch.optim.RMSprop(policy_net.parameters(), lr=constants.LEARNING_RATE) # Momentum (origen del error)
 
     # Initialize storage data structures
     steps_done = 0
@@ -219,7 +217,7 @@ def main_training_loop():
                     state = next_state.clone().detach()
 
                 # Make an optimization step
-                loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion, steps_done)
+                loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion)
 
                 if constants.PLOT_LOSS:
                     losses.append(loss)

@@ -2,12 +2,15 @@ import torch
 import torchvision.transforms as transforms
 from collections import namedtuple
 import numpy as np
-#from memory import Transition
+
+# from memory import Transition
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
-t1 = torch.tensor([1, 2, 3])
-f1 = torch.tensor([1, 2, 3])
 
-print(t1.max(0))
-print(t1)
+a = torch.tensor([[100, 200, 300], [400, 500, 600], [400, 500, 600]])
+actions = np.concatenate(torch.tensor([[2], [1], [0]]).numpy())
+
+indices = np.array([0, 2, 1])
+
+print(a[indices, actions])
