@@ -9,8 +9,5 @@ Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-a = torch.zeros((2, 3), device=device)
-a2 = a.clone()
-print(a)
-print(a2)
+print(torch.cuda.get_device_properties(device).total_memory)
+print(device)

@@ -14,7 +14,20 @@ import utils
 from network import DeepQNetwork
 
 # Set device if GPU is available
+# Determines if the capacity of the GPU will works with the memory
+#   - 1500 bytes each screenshot
+#   - 8 screenshots per state
+#   - constants.REPLAY_MEMORY_SIZE is the maximum size of the replay memory
+#   - constants.N_STEPS_FIXED_STATES states * 8 screenshot per state * 1500 bytes per screenshot is the number of
+#     states needed to test the agent
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if (torch.cuda.is_available() and
+        (constants.REPLAY_MEMORY_SIZE + constants.N_STEPS_FIXED_STATES) * 8 * 1500 > torch.cuda.get_device_properties(device).total_memory):
+    device = torch.device("cpu")
+else:
+    device = torch.device("cuda")
+print("Using device:", device)
+
 
 def compute_epsilon(steps_done):
     if steps_done < 1000000:
@@ -49,11 +62,6 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion):
     reward_batch = torch.cat([trans.reward for trans in transitions])
 
     state_action_values = policy_nn(state_batch).gather(1, action_batch)
-
-    utils.state_to_image(state_batch[0].unsqueeze(0), "StateA")
-    utils.state_to_image(non_final_next_states[0].unsqueeze(0), "StateB")
-    import sys
-    sys.exit(0)
 
     next_state_values = torch.zeros(constants.BATCH_SIZE, device=device)
     next_state_values[non_final_mask] = target_nn(non_final_next_states).max(1)[0].detach()
@@ -192,7 +200,12 @@ def main_training_loop():
                     observation_reward = -1
                     episode_reward += -1
                 elif reward > 0:
-                    observation_reward = 1
+                    if reward == 100:
+                        observation_reward = 1
+                    elif reward == 50:
+                        observation_reward = 0.5
+                    elif reward == 20:
+                        observation_reward = 0.2
                     episode_reward += observation_reward
                 elif reward < 0:
                     observation_reward = -1
