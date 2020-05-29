@@ -1,21 +1,19 @@
-import constants
-import utils
-
-import torch
+import random
 
 import gym
-import random
-import numpy
-
-from agent import get_screen
-
+import matplotlib.pyplot as plt
 import pandas as pd
+import torch
 from sklearn.manifold import TSNE
 
-import matplotlib.pyplot as plt
+import constants
+import utils
+from agent import device
+from agent import get_screen
 
 SHOW_GAME = False
 SHOW_GRAPH = True
+
 
 class DeepQNetwork(torch.nn.Module):
 
@@ -23,16 +21,10 @@ class DeepQNetwork(torch.nn.Module):
         super(DeepQNetwork, self).__init__()
 
         # First layer
-        self.conv1 = torch.nn.Conv2d(input_channels, 32, kernel_size=8, stride=4)
-        self.bn1 = torch.nn.BatchNorm2d(32)
+        self.conv1 = torch.nn.Conv2d(input_channels, 16, kernel_size=8, stride=4)
 
         # Second layer
-        self.conv2 = torch.nn.Conv2d(32, 64, kernel_size=4, stride=2)
-        self.bn2 = torch.nn.BatchNorm2d(64)
-
-        # Third layer
-        self.conv3 = torch.nn.Conv2d(64, 64, kernel_size=3, stride=1)
-        self.bn3 = torch.nn.BatchNorm2d(64)
+        self.conv2 = torch.nn.Conv2d(16, 32, kernel_size=4, stride=2)
 
         # Method that computes the number of units of a convolution output given an input
         # Equation taken from:
@@ -41,25 +33,20 @@ class DeepQNetwork(torch.nn.Module):
         def conv2d_output_size(input_size, kernel_size, stride):
             return ((input_size - kernel_size) // stride) + 1
 
-        convw = conv2d_output_size(
-            conv2d_output_size(conv2d_output_size(width, kernel_size=8, stride=4), kernel_size=4, stride=2),
-            kernel_size=3, stride=1)
-        convh = conv2d_output_size(
-            conv2d_output_size(conv2d_output_size(height, kernel_size=8, stride=4), kernel_size=4, stride=2),
-            kernel_size=3, stride=1)
+        convw = conv2d_output_size(conv2d_output_size(width, kernel_size=8, stride=4), kernel_size=4, stride=2)
+        convh = conv2d_output_size(conv2d_output_size(height, kernel_size=8, stride=4), kernel_size=4, stride=2)
 
-        linear_output_size = 64 * convw * convh
+        linear_output_size = 32 * convw * convh
 
         # Hidden layer
-        self.hiden_linear_layer = torch.nn.Linear(linear_output_size, 512)
+        self.hiden_linear_layer = torch.nn.Linear(linear_output_size, 256)
 
         # Output layer
-        self.head = torch.nn.Linear(512, outputs)
+        self.head = torch.nn.Linear(256, outputs)
 
     def forward(self, x):
-        x = torch.nn.functional.relu(self.bn1(self.conv1(x)))
-        x = torch.nn.functional.relu(self.bn2(self.conv2(x)))
-        x = torch.nn.functional.relu(self.bn3(self.conv3(x)))
+        x = torch.nn.functional.relu(self.conv1(x))
+        x = torch.nn.functional.relu(self.conv2(x))
         x = x.view(x.size(0), -1)
         hidden_out = self.hiden_linear_layer(x)
         x = torch.nn.functional.relu(self.hiden_linear_layer(x))
@@ -73,8 +60,7 @@ def select_action(state, policy_nn, env):
         with torch.no_grad():
             return policy_nn(state)[0].max(1)[1].view(1, 1)
     else:
-        return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
-
+        return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long, device=device)
 
 
 def get_fixed_states():
@@ -88,7 +74,7 @@ def get_fixed_states():
     def prepare_cumulative_screenshot(cumul_screenshot):
         # Prepare the cumulative screenshot
         for i in range(constants.N_IMAGES_PER_STATE - 1):
-            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
+            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH), device=device)
             cumul_screenshot.append(padding_image)
 
     prepare_cumulative_screenshot(cumulative_screenshot)
@@ -96,7 +82,7 @@ def get_fixed_states():
     screen_grayscale_state = get_screen(env)
     cumulative_screenshot.append(screen_grayscale_state.clone().detach())
 
-    N_STATES = 30000
+    N_STATES = 200
 
     state = utils.process_state(cumulative_screenshot)
 
@@ -127,7 +113,7 @@ def get_fixed_states():
 def t_sne_algorithm(target_nn):
     states = get_fixed_states()
 
-    N_SAMPLES = 30000
+    N_SAMPLES = 200
 
     sample_states = random.sample(states, k=N_SAMPLES)
 
@@ -137,13 +123,13 @@ def t_sne_algorithm(target_nn):
         result, hidden = target_nn(state)
         flatten_states.append(hidden[0].clone().detach().tolist())
         q_values.append(result.max(1)[0].view(1, 1).item())
-        #print("Q value =", result.max(1)[0].view(1, 1).item())
+        # print("Q value =", result.max(1)[0].view(1, 1).item())
 
-    flatten_states_tensor = torch.tensor(flatten_states)
+    flatten_states_tensor = torch.tensor(flatten_states, device=device)
 
     feat_cols = ['out' + str(i) for i in range(flatten_states_tensor.shape[1])]
 
-    df = pd.DataFrame(flatten_states_tensor.numpy(), columns=feat_cols)
+    df = pd.DataFrame(flatten_states_tensor.cpu().numpy(), columns=feat_cols)
     df['y'] = q_values
 
     tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
@@ -173,7 +159,7 @@ if __name__ == "__main__":
     target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
                               constants.N_IMAGES_PER_STATE // 2,
-                              n_actions)
+                              n_actions).to(device)
 
     target_net.load_state_dict(torch.load("nn_parameters.pth"))
     target_net.eval()

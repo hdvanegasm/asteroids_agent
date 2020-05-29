@@ -1,9 +1,9 @@
+import matplotlib.pyplot
 import torch
 import torchvision.transforms as transforms
 
 import constants
 
-import matplotlib.pyplot
 
 def transform_image(screen):
     return transforms.Compose([
@@ -35,5 +35,5 @@ def process_state(cumulative_screenshot):
 def state_to_image(state, identifier):
     i = 0
     for channel in state[0]:
-        matplotlib.pyplot.imsave("state-" + identifier + "-" + str(i) + ".png", channel)
+        matplotlib.pyplot.imsave("state-" + identifier + "-" + str(i) + ".png", channel.cpu())
         i += 1

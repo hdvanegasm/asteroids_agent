@@ -1,27 +1,21 @@
 import gym
+import utils
+import matplotlib
 
-
-
-import gym
-env = gym.make('BreakoutNoFrameskip-v0')
-positive_reward = 0
-total_steps = 0
-for i_episode in range(50):
+env = gym.make('AsteroidsNoFrameskip-v0')
+steps_done = 0
+action = 3
+for i_episode in range(1):
     observation = env.reset()
     t = 0
     while True:
-        env.render()
         action = env.action_space.sample()
-        observation, reward, done, info = env.step(action)
-        if reward != 0:
-            positive_reward += 1
-        if done:
-            print("Episode finished after {} timesteps".format(t+1))
+        _, reward, done, info = env.step(action)
+        screen = env.render(mode='rgb_array')
+        matplotlib.pyplot.imsave("screen" + str(steps_done) + ".png", screen)
+        steps_done += 1
+        if steps_done == 100:
             break
-        t += 1
-        total_steps += 1
+
 env.close()
 
-print("# Positive Reward:", positive_reward)
-print("# Total Steps:", total_steps)
-print("p =", positive_reward / total_steps)

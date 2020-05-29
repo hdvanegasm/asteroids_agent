@@ -1,2 +1,1 @@
 ,epoch,n_steps,avg_reward,avg_score,n_episodes,avg_q_value
-0,1,5000,7.0,430.0,1,1.2162200951576232

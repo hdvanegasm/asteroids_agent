@@ -8,9 +8,9 @@ import numpy as np
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
-a = torch.tensor([[100, 200, 300], [400, 500, 600], [400, 500, 600]])
-actions = np.concatenate(torch.tensor([[2], [1], [0]]).numpy())
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-indices = np.array([0, 2, 1])
-
-print(a[indices, actions])
+a = torch.zeros((2, 3), device=device)
+a2 = a.clone()
+print(a)
+print(a2)

@@ -1,11 +1,11 @@
-import constants
-import utils
-import agent
+import random
 
 import gym
 import torch
 
-import random
+import agent
+import constants
+import utils
 
 
 def get_fixed_states():
@@ -19,7 +19,7 @@ def get_fixed_states():
     def prepare_cumulative_screenshot(cumul_screenshot):
         # Prepare the cumulative screenshot
         for i in range(constants.N_IMAGES_PER_STATE - 1):
-            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
+            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH), device=agent.device)
             cumul_screenshot.append(padding_image)
 
         screen_grayscale_state = agent.get_screen(env_game)
@@ -58,7 +58,7 @@ def select_action(state, policy_nn, env):
         with torch.no_grad():
             return policy_nn(state).max(1)[1].view(1, 1)
     else:
-        return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
+        return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long, device=agent.device)
 
 
 def test_agent(target_nn, fixed_states):
@@ -81,7 +81,7 @@ def test_agent(target_nn, fixed_states):
 
         # Prepare the cumulative screenshot
         for i in range(constants.N_IMAGES_PER_STATE - 1):
-            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
+            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH), device=agent.device)
             cumul_screenshot.append(padding_image)
 
         game_env.reset()

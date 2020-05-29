@@ -1,15 +1,16 @@
-from network import DeepQNetwork
-from agent import get_screen
-from agent import plot_q_continuous
-import constants
-import utils
+import random
 import time
 
+import gym
+import numpy
 import torch
 
-import gym
-import random
-import numpy
+import constants
+import utils
+from agent import device
+from agent import get_screen
+from agent import plot_q_continuous
+from network import DeepQNetwork
 
 
 def select_action(state, policy_nn, env):
@@ -19,7 +20,7 @@ def select_action(state, policy_nn, env):
         with torch.no_grad():
             return policy_nn(state).max(1)[1].view(1, 1)
     else:
-        return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
+        return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long, device=device)
 
 
 def benchmark():
@@ -30,13 +31,13 @@ def benchmark():
     target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
                               constants.N_IMAGES_PER_STATE // 2,
-                              n_actions)
+                              n_actions).to(device)
 
     target_net.load_state_dict(torch.load("nn_parameters.pth"))
 
     target_net.eval()
 
-    n_test_episodes = 50
+    n_test_episodes = 2
 
     episode_scores = []
     episode_rewards = []
@@ -52,7 +53,7 @@ def benchmark():
             # Prepare the cumulative screenshot
 
             for i in range(constants.N_IMAGES_PER_STATE - 1):
-                padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH))
+                padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH), device=device)
                 cumulative_screenshot.append(padding_image)
 
             env.reset()

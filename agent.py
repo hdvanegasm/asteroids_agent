@@ -1,22 +1,20 @@
-import math
 import random
-import numpy
-import pandas
 
 import gym
-
-import torch.optim
+import matplotlib.pyplot as plt
+import numpy
+import pandas
 import torch.nn.functional
+import torch.optim
 
-from network import DeepQNetwork
 import constants
 import memory
-import utils
 import test
-import time
+import utils
+from network import DeepQNetwork
 
-import matplotlib.pyplot as plt
-
+# Set device if GPU is available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def compute_epsilon(steps_done):
     if steps_done < 1000000:
@@ -32,7 +30,7 @@ def select_action(state, policy_nn, steps_done, env):
         with torch.no_grad():
             return policy_nn(state).max(1)[1].view(1, 1)
     else:
-        return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long)
+        return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
 
 
 def optimize_model(target_nn, policy_nn, memory, optimizer, criterion):
@@ -42,7 +40,8 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion):
     transitions = memory.sample(constants.BATCH_SIZE)
 
     # Array of True/False if the state is non final
-    non_final_mask = torch.tensor(tuple(map(lambda t: t.next_state is not None, transitions)), dtype=torch.bool)
+    non_final_mask = torch.tensor(tuple(map(lambda t: t.next_state is not None, transitions)), dtype=torch.bool,
+                                  device=device)
     non_final_next_states = torch.cat([trans.next_state for trans in transitions
                                        if trans.next_state is not None])
     state_batch = torch.cat([trans.state for trans in transitions])
@@ -51,7 +50,12 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion):
 
     state_action_values = policy_nn(state_batch).gather(1, action_batch)
 
-    next_state_values = torch.zeros(constants.BATCH_SIZE)
+    utils.state_to_image(state_batch[0].unsqueeze(0), "StateA")
+    utils.state_to_image(non_final_next_states[0].unsqueeze(0), "StateB")
+    import sys
+    sys.exit(0)
+
+    next_state_values = torch.zeros(constants.BATCH_SIZE, device=device)
     next_state_values[non_final_mask] = target_nn(non_final_next_states).max(1)[0].detach()
 
     # Compute the expected Q values
@@ -69,7 +73,7 @@ def optimize_model(target_nn, policy_nn, memory, optimizer, criterion):
 
 def get_screen(env):
     screen = env.render(mode='rgb_array')
-    return (utils.transform_image(screen)[1]).unsqueeze(0)  # No escalado (origen del error)
+    return (utils.transform_image(screen)[1]).unsqueeze(0).to(device)  # No escalado (origen del error)
 
 
 def plot_loss_continuous(losses):
@@ -107,6 +111,8 @@ def plot_loss_img(losses):
 
 
 def plot_scores(scores):
+    plt.figure(2)
+    plt.clf()
     plt.title("Training scores")
     plt.xlabel("Episode")
     plt.ylabel("Score")
@@ -128,11 +134,11 @@ def main_training_loop():
     policy_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
                               constants.N_IMAGES_PER_STATE // 2,
-                              n_actions)
+                              n_actions).to(device)
     target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
                               constants.N_IMAGES_PER_STATE // 2,
-                              n_actions)
+                              n_actions).to(device)
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
     criterion = torch.nn.MSELoss()
@@ -153,7 +159,7 @@ def main_training_loop():
 
             # Prepare the cumulative screenshot with initial black screens
             for i in range(constants.N_IMAGES_PER_STATE - 1):
-                padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH)).detach()
+                padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH)).detach().to(device)
                 cumulative_screenshot.append(padding_image)
 
             env.reset()
@@ -168,30 +174,29 @@ def main_training_loop():
             # Initialize lives
             prev_state_lives = constants.INITIAL_LIVES
 
-            for i in range(constants.N_TIMESTEP_PER_EP):
+            while True:
                 if constants.SHOW_SCREEN:
                     env.render()
 
                 # Select an action with epsilon-greedy policy
                 action = select_action(state, policy_net, steps_done, env)
 
+                observation_reward = 0
+
                 # Make a step in the environment
                 _, reward, done, info = env.step(action.item())
                 episode_score += reward
 
                 # Apply transformation on the reward
-                reward_tensor = None
                 if info["ale.lives"] < prev_state_lives:
-                    reward_tensor = torch.tensor([-1])
+                    observation_reward = -1
                     episode_reward += -1
                 elif reward > 0:
-                    reward_tensor = torch.tensor([1])
-                    episode_reward += 1
+                    observation_reward = 1
+                    episode_reward += observation_reward
                 elif reward < 0:
-                    reward_tensor = torch.tensor([-1])
+                    observation_reward = -1
                     episode_reward += -1
-                else:
-                    reward_tensor = torch.tensor([0])
 
                 # Update lives
                 prev_state_lives = info["ale.lives"]
@@ -207,17 +212,21 @@ def main_training_loop():
                     replay_memory.push(state.clone().detach(),
                                        action.clone(),
                                        next_state,
-                                       reward_tensor)
+                                       torch.tensor([observation_reward], device=device))
                 else:
                     next_state = utils.process_state(cumulative_screenshot)
                     replay_memory.push(state.clone().detach(),
                                        action.clone(),
                                        next_state.clone().detach(),
-                                       reward_tensor)
+                                       torch.tensor([observation_reward], device=device))
                     state = next_state.clone().detach()
 
                 # Make an optimization step
-                loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion)
+                if len(replay_memory) >= constants.INITIAL_REPLAY_MEMORY_SIZE:
+                    loss = optimize_model(target_net, policy_net, replay_memory, optimizer, criterion)
+                else:
+                    print("Filling replay memory...")
+                    steps_done = 0
 
                 if constants.PLOT_LOSS:
                     losses.append(loss)
@@ -264,8 +273,20 @@ def main_training_loop():
                     print("Saving network state...")
                     torch.save(target_net.state_dict(), "info/nn_parameters.pth")
                     print("Network state saved.")
+                    print("Saving information...")
+                    information_numpy = numpy.array(information)
+                    dataframe_information = pandas.DataFrame(columns=information_numpy[0, 0:],
+                                                             data=information_numpy[1:, 0:])
+                    dataframe_information.to_csv("info/results.csv")
+                    print(dataframe_information)
+                    plot_scores(episode_scores)
+                    print("Information saved")
 
         # Save test information in dataframe
+        print("Saving network state...")
+        torch.save(target_net.state_dict(), "info/nn_parameters.pth")
+        print("Network state saved.")
+
         print("Saving information...")
         information_numpy = numpy.array(information)
         dataframe_information = pandas.DataFrame(columns=information_numpy[0, 0:],
@@ -275,8 +296,14 @@ def main_training_loop():
 
         plot_scores(episode_scores)
 
+        print("Information saved")
+
     except KeyboardInterrupt:
         # Save test information in dataframe
+        print("Saving network state...")
+        torch.save(target_net.state_dict(), "info/nn_parameters.pth")
+        print("Network state saved.")
+
         print("Saving information...")
         information_numpy = numpy.array(information)
         dataframe_information = pandas.DataFrame(columns=information_numpy[0, 0:], data=information_numpy[1:, 0:])
@@ -284,6 +311,8 @@ def main_training_loop():
         print(dataframe_information)
 
         plot_scores(episode_scores)
+
+        print("Information saved")
 
     env.close()
 
