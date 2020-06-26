@@ -1,19 +1,17 @@
 import random
 
-import gym
 import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 from sklearn.manifold import TSNE
 
 import constants
-import utils
-from agent import device
-from agent import get_screen
+import wrappers
 
 SHOW_GAME = False
 SHOW_GRAPH = True
 
+device = torch.device("cpu")
 
 class DeepQNetwork(torch.nn.Module):
 
@@ -66,45 +64,25 @@ def select_action(state, policy_nn, env):
 def get_fixed_states():
     fixed_states = []
 
-    env = gym.make('AsteroidsNoFrameskip-v0')
-    env.reset()
+    env = wrappers.make_env("BreakoutNoFrameskip-v0")
+    state = env.reset()
+    state = torch.tensor(state, device=device, dtype=torch.float)
 
-    cumulative_screenshot = []
+    N_STATES = 30000
 
-    def prepare_cumulative_screenshot(cumul_screenshot):
-        # Prepare the cumulative screenshot
-        for i in range(constants.N_IMAGES_PER_STATE - 1):
-            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH), device=device)
-            cumul_screenshot.append(padding_image)
-
-    prepare_cumulative_screenshot(cumulative_screenshot)
-
-    screen_grayscale_state = get_screen(env)
-    cumulative_screenshot.append(screen_grayscale_state.clone().detach())
-
-    N_STATES = 200
-
-    state = utils.process_state(cumulative_screenshot)
-
-    for steps in range(N_STATES + 8):
+    for steps in range(N_STATES):
         if SHOW_GAME:
             env.render()
 
         action = select_action(state, target_net, env)
-        _, _, done, _ = env.step(action.item())  # take a random action
+        obs, _, done, _ = env.step(action.item())  # take a random action
+        state = torch.tensor(obs, device=device, dtype=torch.float)
 
         if done:
-            env.reset()
-            cumulative_screenshot = []
-            prepare_cumulative_screenshot(cumulative_screenshot)
+            state = env.reset()
+            state = torch.tensor(state, device=device, dtype=torch.float)
 
-        screen_grayscale = get_screen(env)
-        cumulative_screenshot.append(screen_grayscale.clone().detach())
-        state = utils.process_state(cumulative_screenshot)
-        cumulative_screenshot.pop(0)
-
-        if steps >= 8:
-            fixed_states.append(state.clone().detach())
+        fixed_states.append(state.detach())
 
     env.close()
     return fixed_states
@@ -113,7 +91,7 @@ def get_fixed_states():
 def t_sne_algorithm(target_nn):
     states = get_fixed_states()
 
-    N_SAMPLES = 200
+    N_SAMPLES = 30000
 
     sample_states = random.sample(states, k=N_SAMPLES)
 
@@ -128,6 +106,8 @@ def t_sne_algorithm(target_nn):
     flatten_states_tensor = torch.tensor(flatten_states, device=device)
 
     feat_cols = ['out' + str(i) for i in range(flatten_states_tensor.shape[1])]
+
+    pd.DataFrame(data=q_values, columns=["q_values"]).to_csv("tsne_q_values_breakout_rm1m.csv")
 
     df = pd.DataFrame(flatten_states_tensor.cpu().numpy(), columns=feat_cols)
     df['y'] = q_values
@@ -145,6 +125,9 @@ def t_sne_algorithm(target_nn):
                s=3,
                edgecolor='',
                cmap="jet")
+    ax.set_title("t-SNE para Breakout - Memoria con 1.000.000 entradas")
+    ax.set_xlabel("Componente 1")
+    ax.set_ylabel("Componente 2")
     if SHOW_GRAPH:
         plt.show()
 
@@ -152,13 +135,13 @@ def t_sne_algorithm(target_nn):
 
 
 if __name__ == "__main__":
-    env = gym.make('AsteroidsNoFrameskip-v0')
+    env = wrappers.make_env("BreakoutNoFrameskip-v0")
 
     n_actions = env.action_space.n
 
     target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
-                              constants.N_IMAGES_PER_STATE // 2,
+                              constants.N_IMAGES_PER_STATE,
                               n_actions).to(device)
 
     target_net.load_state_dict(torch.load("nn_parameters.pth"))

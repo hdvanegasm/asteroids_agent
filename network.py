@@ -15,7 +15,6 @@ class DeepQNetwork(torch.nn.Module):
         # Second layer
         self.conv2 = torch.nn.Conv2d(16, 32, kernel_size=4, stride=2)
 
-
         # Method that computes the number of units of a convolution output given an input
         # Equation taken from:
         # Dumoulin, V., & Visin, F.(2016).A guide to convolution arithmetic for deep learning. 1–31. Retrieved from
@@ -40,4 +39,3 @@ class DeepQNetwork(torch.nn.Module):
         x = x.view(x.size(0), -1)
         x = torch.nn.functional.relu(self.hiden_linear_layer(x))
         return self.head(x)
-    

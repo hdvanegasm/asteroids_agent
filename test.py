@@ -1,68 +1,37 @@
 import random
 
-import gym
 import torch
 
-import agent
 import constants
-import utils
+import wrappers
 
 
-def get_fixed_states():
+def get_fixed_states(agent, env_id):
 
     fixed_states = []
 
-    env_game = gym.make('AsteroidsNoFrameskip-v0')
+    env_game = wrappers.make_env(env_id)
 
-    cumul_screenshot = []
-
-    def prepare_cumulative_screenshot(cumul_screenshot):
-        # Prepare the cumulative screenshot
-        for i in range(constants.N_IMAGES_PER_STATE - 1):
-            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH), device=agent.device)
-            cumul_screenshot.append(padding_image)
-
-        screen_grayscale_state = agent.get_screen(env_game)
-        cumul_screenshot.append(screen_grayscale_state.clone().detach())
-
-    prepare_cumulative_screenshot(cumul_screenshot)
     env_game.reset()
 
-    for steps in range(constants.N_STEPS_FIXED_STATES + 8):
+    for steps in range(agent.n_test_fixed_states):
         if constants.SHOW_SCREEN:
             env_game.render()
 
-        _, _, done, _ = env_game.step(env_game.action_space.sample())  # take a random action
+        obs, _, done, _ = env_game.step(env_game.action_space.sample())  # take a random action
 
         if done:
-            env_game.reset()
-            cumul_screenshot = []
-            prepare_cumulative_screenshot(cumul_screenshot)
+            obs = env_game.reset()
 
-        screen_grayscale = agent.get_screen(env_game)
-        cumul_screenshot.append(screen_grayscale.clone().detach())
-        cumul_screenshot.pop(0)
-        state = utils.process_state(cumul_screenshot)
-
-        if steps >= 8:
-            fixed_states.append(state.clone().detach())
+        obs_tensor = torch.tensor(obs, device=agent.device, dtype=torch.float32)
+        fixed_states.append(obs_tensor.detach())
 
     env_game.close()
     return fixed_states
 
 
-def select_action(state, policy_nn, env):
-    epsilon_threshold = constants.TEST_EPSILON
-    sample = random.random()
-    if sample > epsilon_threshold:
-        with torch.no_grad():
-            return policy_nn(state).max(1)[1].view(1, 1)
-    else:
-        return torch.tensor([[random.randrange(env.action_space.n)]], dtype=torch.long, device=agent.device)
-
-
-def test_agent(target_nn, fixed_states):
-    game_env = gym.make('AsteroidsNoFrameskip-v0')
+def test_agent(agent, env_id):
+    game_env = wrappers.make_env(env_id)
 
     steps = 0
     n_episodes = 0
@@ -74,50 +43,23 @@ def test_agent(target_nn, fixed_states):
     done_last_episode = False
 
     while steps <= constants.N_TEST_STEPS:
-        cumul_screenshot = []
 
         sum_score_episode = 0
         sum_reward_episode = 0
 
-        # Prepare the cumulative screenshot
-        for i in range(constants.N_IMAGES_PER_STATE - 1):
-            padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH), device=agent.device)
-            cumul_screenshot.append(padding_image)
-
-        game_env.reset()
-
-        screen_grayscale_state = agent.get_screen(game_env)
-        cumul_screenshot.append(screen_grayscale_state.clone().detach())
-
-        state = utils.process_state(cumul_screenshot)
-
-        prev_state_lives = constants.INITIAL_LIVES
-
+        state = game_env.reset()
+        state = torch.tensor(state, device=agent.device, dtype=torch.float32)
         while steps <= constants.N_TEST_STEPS:
-            action = select_action(state, target_nn, game_env)
-            _, reward, done, info = game_env.step(action.item())
+            action = agent.select_test_action(state)
+            obs, (reward, score), done, info = game_env.step(action.item())
 
-            sum_score_episode += reward
-
-            reward_tensor = None
-
-            if info["ale.lives"] < prev_state_lives:
-                sum_reward_episode += -1
-            elif reward < 0:
-                sum_reward_episode += -1
-            elif reward > 0:
-                sum_reward_episode += 1
-
-            prev_state_lives = info["ale.lives"]
-
-            screen_grayscale = agent.get_screen(game_env)
-            cumul_screenshot.append(screen_grayscale.clone().detach())
-            cumul_screenshot.pop(0)
+            sum_score_episode += score
+            sum_reward_episode += reward
 
             if done:
                 next_state = None
             else:
-                next_state = utils.process_state(cumul_screenshot)
+                next_state = torch.tensor(obs, device=agent.device, dtype=torch.float32)
 
             if next_state is not None:
                 state = next_state.clone().detach()
@@ -142,8 +84,8 @@ def test_agent(target_nn, fixed_states):
 
     # Compute Q-values
     sum_q_values = 0
-    for state in fixed_states:
+    for state in agent.fixed_states:
         with torch.no_grad():
-            sum_q_values += target_nn(state).max(1)[0].item()
+            sum_q_values += agent.target_net(state).max(1)[0].item()
 
-    return sum_reward / n_episodes, sum_score / n_episodes, n_episodes, sum_q_values / len(fixed_states)
+    return sum_reward / n_episodes, sum_score / n_episodes, n_episodes, float(sum_q_values) / len(agent.fixed_states)

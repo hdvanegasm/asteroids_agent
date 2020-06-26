@@ -1,21 +1,28 @@
 import gym
 import utils
 import matplotlib
-
-env = gym.make('AsteroidsNoFrameskip-v0')
+import time
+import wrappers
+import numpy
+#env = gym.make('BreakoutNoFrameskip-v0')
+env = wrappers.make_env("BreakoutNoFrameskip-v0")
 steps_done = 0
-action = 3
-for i_episode in range(1):
+print(env.action_space.n)
+episode_scores = []
+for i_episode in range(500):
     observation = env.reset()
     t = 0
+    sum_episode = 0
     while True:
-        action = env.action_space.sample()
-        _, reward, done, info = env.step(action)
-        screen = env.render(mode='rgb_array')
-        matplotlib.pyplot.imsave("screen" + str(steps_done) + ".png", screen)
+        _, (reward, score), done, info = env.step(env.action_space.sample())
         steps_done += 1
-        if steps_done == 100:
+        sum_episode += score
+        if done:
+            print(sum_episode)
+            episode_scores.append(sum_episode)
             break
 
 env.close()
+print("Mean:", numpy.mean(episode_scores))
+print("Std:", numpy.std(episode_scores))
 

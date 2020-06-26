@@ -1,16 +1,15 @@
 import random
 import time
 
-import gym
 import numpy
 import torch
 
 import constants
-import utils
-from agent import device
-from agent import get_screen
-from agent import plot_q_continuous
+import wrappers
+from main_dqn import plot_q_continuous
 from network import DeepQNetwork
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def select_action(state, policy_nn, env):
@@ -24,20 +23,20 @@ def select_action(state, policy_nn, env):
 
 
 def benchmark():
-    env = gym.make('AsteroidsNoFrameskip-v0')
+    env = wrappers.make_env("BreakoutNoFrameskip-v0")
 
     n_actions = env.action_space.n
 
     target_net = DeepQNetwork(constants.STATE_IMG_HEIGHT,
                               constants.STATE_IMG_WIDTH,
-                              constants.N_IMAGES_PER_STATE // 2,
+                              constants.N_IMAGES_PER_STATE,
                               n_actions).to(device)
 
     target_net.load_state_dict(torch.load("nn_parameters.pth"))
 
     target_net.eval()
 
-    n_test_episodes = 2
+    n_test_episodes = 200
 
     episode_scores = []
     episode_rewards = []
@@ -47,61 +46,34 @@ def benchmark():
 
     try:
         for i_episode in range(n_test_episodes):
-
-            cumulative_screenshot = []
-
-            # Prepare the cumulative screenshot
-
-            for i in range(constants.N_IMAGES_PER_STATE - 1):
-                padding_image = torch.zeros((1, constants.STATE_IMG_HEIGHT, constants.STATE_IMG_WIDTH), device=device)
-                cumulative_screenshot.append(padding_image)
-
-            env.reset()
+            state = env.reset()
+            state = torch.tensor(state, device=device, dtype=torch.float32)
             episode_score = 0
             episode_reward = 0
 
-            screen_grayscale_state = get_screen(env)
-            cumulative_screenshot.append(screen_grayscale_state.clone().detach())
-
-            state = utils.process_state(cumulative_screenshot)
-
-            prev_state_lives = constants.INITIAL_LIVES
-
             while True:
-
                 time.sleep(0.01)
 
                 if constants.SHOW_SCREEN:
-                    env.render()
+                    env.unwrapped.render()
 
                 action = select_action(state, target_net, env)
-                _, reward, done, info = env.step(action.item())
-                episode_score += reward
+                obs, (reward, score), done, info = env.step(action.item())
+                episode_score += score
 
-                if info["ale.lives"] < prev_state_lives:
-                    episode_reward += -1
-                elif reward > 0:
-                    episode_reward += 1
-                elif reward < 0:
-                    episode_reward += -1
-
-                prev_state_lives = info["ale.lives"]
-
-                screen_grayscale = get_screen(env)
-                cumulative_screenshot.append(screen_grayscale.clone().detach())
-                cumulative_screenshot.pop(0)  # Deletes the first element of the list to save memory space
+                episode_reward += reward
 
                 if done:
                     next_state = None
                 else:
-                    next_state = utils.process_state(cumulative_screenshot)
+                    next_state = torch.tensor(obs, device=device, dtype=torch.float32)
 
                 if next_state is not None:
                     state = next_state.clone().detach()
 
                 if constants.PLOT_Q:
-                    if steps_done > 120:
-                        q_values.pop(0)
+                    # if steps_done > 120:
+                    #     q_values.pop(0)
 
                     with torch.no_grad():
                         q_values.append(target_net(state).max(1)[0].view(1, 1).item())
