@@ -1,0 +1,441 @@
+---
+title: "Análisis de resultados"
+author: "Hernán Darío Vanegas Madrigal"
+date: "13/6/2020"
+output:
+  rmdformats::readthedown:
+    
+    self_contained: true
+    lightbox: true
+    gallery: true
+    highlight: tango
+    code_folding: "hide"
+
+editor_options: 
+  chunk_output_type: console
+---
+
+# Librerias
+
+```{r, message=F, warning=F, results=F}
+library(tidyverse)
+library(plotly)
+library(ggthemes)
+library(data.table)
+```
+
+# Lectura de resultados
+
+```{r}
+breakout_results_rm1m <- fread("breakout_rm1M/results.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+breakout_results_rm120k <- fread("breakout_rm120k/results.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+asteroids_results <- fread("asteroids_normal/results.csv", encoding = "UTF-8") %>%
+  mutate(
+    sum_score = avg_score * n_episodes
+  ) %>% as_tibble()
+
+asteroids_c_results <- fread("asteroids_c/results.csv", encoding = "UTF-8") %>% 
+  mutate(
+    sum_score = avg_score * n_episodes
+  ) %>% as_tibble()
+
+asteroids_no_random_results <- fread("asteroids_no_random/results.csv", encoding = "UTF-8") %>% 
+  mutate(
+    sum_score = avg_score * n_episodes
+  ) %>% as_tibble() 
+```
+
+# Comparación sobre Breakout
+
+```{r}
+breakout_merge <- full_join(x=breakout_results_rm120k, y=breakout_results_rm1m, by="epoch")
+colors <- c("Memoria de 120K" = "darkred", "Memoria de 1M" = "steelblue")
+
+# X = replay memory con 120K
+# Y = replay memory con 1M
+
+g <- ggplot(data = breakout_merge %>% dplyr::slice(n = 1:148)) +
+  geom_line(mapping = aes(x = epoch, y = avg_q_value.x, color = "Memoria de 120K")) +
+  geom_line(mapping = aes(x = epoch, y = avg_q_value.y, color="Memoria de 1M")) +
+  labs(x = "Epoch", y = "Valor Q promedio", title = "Valor Q promedio por epoch para Breakout", color = "Tamaño de memoria") +
+  scale_color_manual(values = colors)
+
+ggplotly(g)
+
+g <- ggplot(data = breakout_merge %>% dplyr::slice(n = 1:148)) +
+  geom_line(mapping = aes(x = epoch, y = avg_score.x, color = "Memoria de 120K")) +
+  geom_line(mapping = aes(x = epoch, y = avg_score.y, color="Memoria de 1M")) +
+  labs(x = "Epoch", y = "Puntaje promedio", title = "Puntaje promedio por epoch para Breakout", color = "Tamaño de memoria") +
+  scale_color_manual(values = colors)
+
+ggplotly(g)
+```
+
+
+# Comparación de aprendizaje entre Asteroids y Breakout
+
+Se usa el método "Local Polynomial Regression Fitting" para hallar las líneas de tendencia.
+
+## Estadísticas de Asteroids
+
+```{r}
+g <- ggplot(data = asteroids_results) +
+  geom_line(mapping = aes(x = epoch, y = avg_score)) +
+  labs(x = "Epoch", y = "Puntaje promedio", title = "Puntaje promedio por epoch para Asteroids", color = "") +
+  geom_smooth(method="loess", mapping = aes(x = epoch, y = avg_score, color = "Línea de tendencia"), size = 0.5)
+
+ggplotly(g)
+
+g <- ggplot(data = asteroids_results) +
+  geom_line(mapping = aes(x = epoch, y = avg_q_value)) +
+  labs(x = "Epoch", y = "Valor Q promedio", title = "Valor Q por epoch para Asteroids")
+
+ggplotly(g)
+```
+
+
+## Estadísticas de Breakout
+
+```{r}
+g <- ggplot(data = breakout_results_rm1m) +
+  geom_line(mapping = aes(x = epoch, y = avg_score)) +
+  labs(x = "Epoch", y = "Puntaje promedio", title = "Puntaje promedio por epoch para Breakout", color = "") +
+  geom_smooth(method="loess", mapping = aes(x = epoch, y = avg_score, color = "Línea de tendencia"), size = 0.5)
+
+ggplotly(g)
+
+g <- ggplot(data = breakout_results_rm1m) +
+  geom_line(mapping = aes(x = epoch, y = avg_q_value)) +
+  labs(x = "Epoch", y = "Valor Q promedio", title = "Valor Q por epoch para Breakout")
+
+ggplotly(g)
+```
+
+
+# Comparacion de los diferentes agentes de Asteroids
+
+## Comparación con el agente para Asteroids con el C modificado
+
+### Comparación del valor Q
+
+```{r}
+asteroids_merge_normal_c <- full_join(x=asteroids_results, y=asteroids_c_results, by="epoch")
+colors <- c("Asteroids" = "darkred", "Asteroids con C modificado" = "steelblue", "Línea de tendencia - Asteroids" = "red", "Línea de tendencia - C modificado" = "blue")
+
+# X = replay memory con 120K
+# Y = replay memory con 1M
+
+g <- ggplot(data = asteroids_merge_normal_c) +
+  geom_line(mapping = aes(x = epoch, y = avg_q_value.x, color = "Asteroids")) +
+  geom_line(mapping = aes(x = epoch, y = avg_q_value.y, color="Asteroids con C modificado")) +
+  labs(x = "Epoch", y = "Valor Q promedio", title = "Valor Q promedio por epoch para Asteroids", color = "Agente") +
+  scale_color_manual(values = colors)
+
+ggplotly(g)
+```
+
+
+### Comparación del puntaje
+
+```{r}
+# X = Asteroids normal
+# Y = Asteroids con C modificado
+
+g <- ggplot(data = asteroids_merge_normal_c) +
+  geom_line(mapping = aes(x = epoch, y = avg_score.x, color = "Asteroids")) +
+  geom_line(mapping = aes(x = epoch, y = avg_score.y, color="Asteroids con C modificado")) +
+  labs(x = "Epoch", y = "Puntaje promedio", title = "Puntaje promedio por epoch para Asteroids", color = "Agente") +
+  geom_smooth(method="loess", mapping = aes(x = epoch, y = avg_score.x, color = "Línea de tendencia - Asteroids")) + 
+  geom_smooth(method="loess", mapping = aes(x = epoch, y = avg_score.y, color = "Línea de tendencia - C modificado")) +
+  scale_color_manual(values = colors)
+
+ggplotly(g)
+```
+
+### Comparación tomando el puntaje acumulado
+
+```{r}
+g <- ggplot(data = asteroids_results) +
+  geom_line(mapping = aes(x = epoch, y = sum_score)) +
+  labs(x = "Epoch", y = "Puntaje acumulado", title = "Puntaje acumulado para Asteroids", color = "") +
+  geom_smooth(method="loess", mapping = aes(x = epoch, y = sum_score, color = "Línea de tendencia"), size = 0.5)
+
+ggplotly(g)
+
+g <- ggplot(data = asteroids_c_results) +
+  geom_line(mapping = aes(x = epoch, y = sum_score)) +
+  labs(x = "Epoch", y = "Puntaje acumulado", title = "Puntaje acumulado para Asteroids con C modificado", color = "") +
+  geom_smooth(method="loess", mapping = aes(x = epoch, y = sum_score, color = "Línea de tendencia"), size = 0.5)
+
+ggplotly(g)
+```
+
+## Comparación con el agente para Asteroids sin las acciones aleatorias
+
+### Comparación de los valores Q
+
+```{r}
+asteroids_merge_normal_no_random <- full_join(x=asteroids_results, y=asteroids_no_random_results, by="epoch")
+
+colors <- c("Asteroids" = "darkred", "Asteroids sin acciones aleatorias" = "steelblue", "Línea de tendencia - Con aleatoriedad" = "red", "Línea de tendencia - Sin aleatoriedad" = "blue")
+
+# X = replay memory con 120K
+# Y = replay memory con 1M
+
+g <- ggplot(data = asteroids_merge_normal_no_random) +
+  geom_line(mapping = aes(x = epoch, y = avg_q_value.x, color = "Asteroids")) +
+  geom_line(mapping = aes(x = epoch, y = avg_q_value.y, color="Asteroids sin acciones aleatorias")) +
+  labs(x = "Epoch", y = "Valor Q promedio", title = "Valor Q promedio por epoch para Asteroids", color = "Agente") +
+  scale_color_manual(values = colors)
+
+ggplotly(g)
+```
+
+
+### Comparación de los puntajes
+
+```{r}
+# X = Asteroids normal
+# Y = Asteroids sin acciones aleatorias
+
+g <- ggplot(data = asteroids_merge_normal_no_random) +
+  geom_line(mapping = aes(x = epoch, y = avg_score.x, color = "Asteroids")) +
+  geom_line(mapping = aes(x = epoch, y = avg_score.y, color = "Asteroids sin acciones aleatorias")) +
+  labs(x = "Epoch", y = "Puntaje promedio", title = "Puntaje promedio por epoch para Asteroids", color = "Agente") +
+  geom_smooth(method="loess", mapping = aes(x = epoch, y = avg_score.x, color = "Línea de tendencia - Con aleatoriedad")) + 
+  geom_smooth(method="loess", mapping = aes(x = epoch, y = avg_score.y, color = "Línea de tendencia - Sin aleatoriedad")) + 
+  scale_color_manual(values = colors)
+
+ggplotly(g)
+```
+
+### Comparación de los dos ambientes bajo acciones aleatorias
+
+```{r}
+test_scores_random_actions_base <- fread("test_random_actions_asteroids_base.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+test_scores_random_actions_no_random_actions <- fread("test_random_actions_asteroids_no_random_actions.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+test_random_actions_base_no_random_actions <- full_join(x=test_scores_random_actions_base, y=test_scores_random_actions_no_random_actions, by="V1")
+
+summary(test_random_actions_base_no_random_actions %>% dplyr::select(-V1))
+apply(test_random_actions_base_no_random_actions %>% dplyr::select(-V1), 2, sd)
+
+test_random_actions_base_no_random_actions <- test_random_actions_base_no_random_actions %>%
+  dplyr::select(-V1) %>%
+  melt() %>% 
+  mutate(
+    variable = case_when(
+      variable == "asteroids_base" ~ "Asteroids",
+      variable == "asteroids_no_random" ~ "Asteroids sin aleatoriedad",
+    )
+  ) 
+
+g <- ggplot(data = test_random_actions_base_no_random_actions, 
+       mapping = aes(x = variable, y = value)) +
+  geom_boxplot() +
+  labs(x = "Agente", y = "Puntaje", title = "Puntaje de los agentes aleatorios para Asteroids")
+
+ggplotly(g)
+```
+
+# Distribuciones t-SNE
+
+```{r}
+tsne_asteroids_normal <- fread("asteroids_normal/tsne_q_values_asteroids_base.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+g <- ggplot(data = tsne_asteroids_normal, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Asteroids")
+
+ggplotly(g)
+```
+
+
+```{r}
+tsne_asteroids_c <- fread("asteroids_c/tsne_q_values_asteroids_c.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+g <- ggplot(data = tsne_asteroids_c, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Asteroids con C modificado")
+
+ggplotly(g)
+```
+
+
+```{r}
+tsne_asteroids_no_random <- fread("asteroids_no_random/tsne_q_values_asteroids_no_random.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+g <- ggplot(data = tsne_asteroids_no_random, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Asteroids sin acciones aleatorias")
+
+ggplotly(g)
+```
+
+```{r}
+tsne_breakout_rm1m <- fread("breakout_rm1M/tsne_q_values_breakout_rm1m.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+g <- ggplot(data = tsne_breakout_rm1m, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Breakout (Memoria: 1M de entradas)")
+
+ggplotly(g)
+```
+
+## Comparación de densidades para t-SNE de Breakout
+
+```{r}
+tsne_breakout_rm120k <- fread("breakout_rm120K/tsne_q_values_breakout_rm120k.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+g <- ggplot(data = tsne_breakout_rm120k, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Breakout (Memoria: 120k entradas)")
+
+ggplotly(g)
+
+comparison_breakout <- full_join(x = tsne_breakout_rm1m, y = tsne_breakout_rm120k, by = "V1")
+g <- ggplot(data = comparison_breakout) +
+  geom_density(mapping = aes(x = q_values.x, fill = "1.000.000 de entradas") , alpha = 0.5) +
+  geom_density(mapping = aes(x = q_values.y, fill = "120.000 entradas"), alpha = 0.5) +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Breakout", fill = "Tamaño de la memoria")
+
+ggplotly(g)
+```
+
+## Comparación de las densidades de los t-SNE para Asteroids base y Breakout
+
+COMPARACIÓN INJUSTA
+
+```{r}
+comparison_asteroids_base_breakout <- full_join(x = tsne_breakout_rm1m, y = tsne_asteroids_normal, by = "V1")
+g <- ggplot(data = comparison_asteroids_base_breakout) +
+  geom_density(mapping = aes(x = q_values.x, fill = "Breakout") , alpha = 0.5) +
+  geom_density(mapping = aes(x = q_values.y, fill = "Asteroids base"), alpha = 0.5) +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Comparación de Breakout y Asteroids", fill = "Agente")
+
+ggplotly(g)
+```
+
+## Comparación de los valores Q del t-SNE para Asteroids base y Asteroids con C modificado
+
+```{r}
+comparison_asteroids_base_c <- full_join(x = tsne_asteroids_c, y = tsne_asteroids_normal, by = "V1")
+g <- ggplot(data = comparison_asteroids_base_c) +
+  geom_density(mapping = aes(x = q_values.x, fill = "Asteroids con C modificado") , alpha = 0.5) +
+  geom_density(mapping = aes(x = q_values.y, fill = "Asteroids base"), alpha = 0.5) +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Asteroids", fill = "Agente")
+
+ggplotly(g)
+```
+
+
+# Comparacion de los tres agentes de Asteriods
+
+```{r}
+# Loading data
+benchmark_asteroids_normal <- fread("asteroids_normal/benchmark_asteroids_normal.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+benchmark_asteroids_no_random <- fread("asteroids_no_random/benchmark_asteroids_no_random.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+benchmark_asteroids_c <- fread("asteroids_c/benchmark_asteroids_c.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+# Joining results
+benchmark <- full_join(full_join(benchmark_asteroids_normal, benchmark_asteroids_no_random, by = "V1"),
+                       benchmark_asteroids_c, by = "V1") %>% 
+  dplyr::select(-V1)
+
+# Sumarizing information
+summary(benchmark)
+apply(benchmark, 2, sd)
+
+benchmark_melt <- benchmark %>% melt()
+g <- ggplot(data = benchmark_melt, mapping = aes(x = variable, y = value)) +
+  geom_boxplot() +
+  labs(x = "Agente", y = "Puntaje", title = "Puntaje de los agentes para Asteroids")
+
+ggplotly(g)
+```
+
+
+# Densidad de los valores Q
+
+## Asteroids base
+
+```{r}
+q_dist_asteroids_normal <- fread("asteroids_normal/q_values_dist_asteroids_normal.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+g <- ggplot(data = q_dist_asteroids_normal, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Asteroids")
+
+ggplotly(g)
+```
+
+## Asteroids C
+
+```{r}
+q_dist_asteroids_c <- fread("asteroids_c/q_values_dist_asteroids_c.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+g <- ggplot(data = q_dist_asteroids_c, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Asteroids con C modificado")
+
+ggplotly(g)
+```
+
+
+## Asteroids sin acciones aleatorias
+
+```{r}
+q_dist_asteroids_no_random <- fread("asteroids_no_random/q_values_dist_asteroids_no_random.csv", encoding = "UTF-8") %>% 
+  as_tibble()
+
+g <- ggplot(data = q_dist_asteroids_no_random, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Asteroids sin acciones aleatorias")
+
+ggplotly(g)
+```
+
+## Breakout (Memoria de 1.000.000 de transiciones)
+
+```{r}
+q_dist_breakout_rm1m <- fread("breakout_rm1M/q_values_dist_breakout_rm1m.csv", encoding = "UTF-8") %>%
+  as_tibble()
+
+g <- ggplot(data = q_dist_breakout_rm1m, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Breakout (Memoria: 1M de entradas)")
+
+ggplotly(g)
+```
+
+
+## Breakout (Memoria de 120.000 de transiciones)
+
+```{r}
+q_dist_breakout_rm120k <- fread("breakout_rm120K/q_values_dist_breakout_rm120k.csv", encoding = "UTF-8") %>%
+  as_tibble()
+
+g <- ggplot(data = q_dist_breakout_rm120k, mapping = aes(x = q_values)) +
+  geom_density(fill = "lightblue") +
+  labs(x = "Valor Q", y = "Densidad", title = "Densidad de los valores Q - Breakout (Memoria: 120K entradas)")
+
+ggplotly(g)
+```
+
